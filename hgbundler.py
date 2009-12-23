@@ -115,7 +115,9 @@ class Bundle(object):
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option('-d', '--bundle-directory', dest='bundle_dir',
-                      help="Specify the bundle directory")
+                      default=os.getcwd(),
+                      help="Specify the bundle directory (defaults to current"
+                      " working directory)")
 
     options, arguments = parser.parse_args()
     if not arguments:
