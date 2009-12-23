@@ -118,6 +118,14 @@ if __name__ == '__main__':
                       help="Specify the bundle directory")
 
     options, arguments = parser.parse_args()
+    if not arguments:
+        parser.error("Need a command")
 
     bundle = Bundle(options.bundle_dir)
-    bundle.update_clones()
+
+    command = arguments[0]
+    if command == 'make-clones':
+        bundle.make_clones()
+        bundle.update_clones()
+    elif command == 'update-clones':
+        bundle.update_clones()

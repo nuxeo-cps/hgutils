@@ -58,6 +58,7 @@ hgbundler make-clones Prio: 2
 
 This uses the server urls and the paths to clone all the involved
 repositories in the bundle directory.
+Automatically followed by ``update-clones``
 
 hgbundler update-clones Prio: 2
 ------------------------------=
