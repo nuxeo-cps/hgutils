@@ -12,12 +12,12 @@ logger.setLevel(logging.DEBUG)
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 
 def make_clone(url, base_dir, target):
-    cmd = 'cd %s; hg clone %s %s' % (base_dir, url, target)
+    cmd = 'cd %s && hg clone %s %s' % (base_dir, url, target)
     logger.debug(cmd)
     os.system(cmd)
 
 def hg_up(path, name):
-    cmd = "cd %s; hg update %s" % (path, name)
+    cmd = "cd %s && hg update %s" % (path, name)
     logger.debug(cmd)
     os.system(cmd)
 
