@@ -1,0 +1,139 @@
+===============================
+Specification for the hgbundler
+===============================
+
+Purpose
+=======
+
+Replace svn externals and bundleman
+
+File format and organisation
+============================
+
+A bundle is a directory with a manifest file listing all involved
+repositories, where to find them, etc. Once cloned, the involved
+repositories will be toplevel subdirectories of the bundle.
+
+The bundle can itself be a mercurial repository, or a directory in a
+repository (use-case: CPS-3-full, CPS-3-base, CPS-3-legacy can all be
+versioned together).
+
+The manifest file is called BUNDLE_MANIFEST.xml. The xml format is as in
+the following example::
+
+  <?xml version="1.0"?>
+  <bundle name="CPS-example">
+    <server name="racinet"
+            url="ssh://mercurial.racinet.org//home/mercurial/CPS">
+      <tag name="CPS-3.4.0" path="products/CPSSchemas"/>
+      <branch path="products/CPSDefault"/> <!-- default branch, aka trunk -->
+      <branch name="unicode" path="products/CPSDocument"/>
+    </server>
+  </bundle>
+
+This declares three components, available as repositories at the given server
+url. For instance, the repository for the first would be::
+
+  ssh://mercurial.racinet.org//home/mercurial/CPS/products/CPSSchemas
+
+As you can see, there are two types of components: tags and
+branches. The trunk being in Mercurial the default branch, there's no
+need to make a special case for it.
+
+OPERATIONS
+==========
+
+hgmap <hg command> <arguments> Prio: 1
+--------------------------------------
+
+This is the simplest: map the given hg command over all hg clones
+present in the directory. Completely unaware of the bundle definition.
+
+This avoids making useless hgbundler commands for ``push``, ``pull``, ``update``
+
+Also, this way, destructive operations like push/pull are explicit.
+
+hgbundler make-clones Prio: 2
+-----------------------------
+
+This uses the server urls and the paths to clone all the involved
+repositories in the bundle directory.
+
+hgbundler update-clones Prio: 2
+------------------------------=
+
+Each clone is updated on the tag or branch specified in the
+manifest.
+
+Question: should this command also create missing clones ?
+
+hgbundler clones-refresh-url Prio: 3
+------------------------------------
+
+This refreshes clones default paths (specified
+in ``.hg/hgrc`` files ) to base them on the bundle server urls.
+
+Use cases: severe the link from the public server while making a private
+bundle from a public one
+
+Question: find a better name ?
+
+hgbundler refresh-urls-from-clones Prio: 3
+------------------------------------------
+
+Update servers and paths of the bundle from the clone default paths. This is the
+converse of ``clones-refresh-url``
+
+Use case: make one of the clones point to a private server
+(for a local branch, for instance). Then update the bundle to take
+that into account.
+
+hgbundler release [tag] Prio: 4
+-------------------------------
+
+For a bundle that happens to be also its own mercurial repository.
+
+ - branch the bundle (name of the branch?)
+ - make a release of each of the <branch> clones (assume we have the equivalent
+   of ``bm-product`` for that purpose ; in the meanwhile, just make a tag)
+ - modify the bundle in the created branch to point to the new tags, commit
+ - tag the bundle
+ - get back to default branch of the bundle
+
+Pushing the bundle to a reference repo is to be made manually afterwards.
+
+
+Question: commands semantics in the case where there are several
+bundles in a single repo (case for CPS-3-full, CPS-3-base, etc). Two
+cases :
+  - release each bundle
+  - release just one
+
+hgbundler archive [tag] Prio: 4
+-------------------------------
+
+Produce a tgz archive for the given tag (recursively calls archive on
+each clone for the corresponding tag)
+
+
+hgbundler make-bundle
+---------------------
+
+Create the manifest file in the current directory from the clones that
+can be found there (choices tags/branches ?)
+
+EXAMPLE
+=======
+
+I have a project for my client, involving some CPS3 products, and
+two specific products: CL1 and CL2.
+
+Project Creation
+----------------
+
+ + Creation of the bundle on the dev machine
+ + Creation of repos on the reference priv server
+
+
+
+
