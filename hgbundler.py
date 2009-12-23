@@ -16,6 +16,11 @@ def make_clone(url, base_dir, target):
     logger.debug(cmd)
     os.system(cmd)
 
+def hg_up(path, name):
+    cmd = "cd %s; hg update %s" % (path, name)
+    logger.debug(cmd)
+    os.system(cmd)
+
 
 class Server(object):
 
@@ -40,11 +45,19 @@ class Repo(object):
 
 
 class Tag(Repo):
-    pass
 
+    def update(self, base_dir):
+        path = os.path.join(base_dir, self.target)
+        hg_up(path, self.name)
 
 class Branch(Repo):
-    pass
+
+    def update(self, base_dir):
+        path = os.path.join(base_dir, self.target)
+        name = self.name
+        if name is None:
+            name = 'default'
+        hg_up(path, name)
 
 
 class Bundle(object):
@@ -95,6 +108,10 @@ class Bundle(object):
         for repo in self.getRepos():
             repo.make_clone(base_dir=self.bundle_dir)
 
+    def update_clones(self):
+        for repo in self.getRepos():
+            repo.update(base_dir=self.bundle_dir)
+
 if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option('-d', '--bundle-directory', dest='bundle_dir',
@@ -103,4 +120,4 @@ if __name__ == '__main__':
     options, arguments = parser.parse_args()
 
     bundle = Bundle(options.bundle_dir)
-    bundle.make_clones()
+    bundle.update_clones()
