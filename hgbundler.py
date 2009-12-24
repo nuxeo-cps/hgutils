@@ -88,17 +88,21 @@ class Bundle(object):
                 if klass is None:
                     continue
 
-                path = r.attrib.get('path')
+                attrib = r.attrib
+                path = attrib.get('path')
                 if path is None:
                     raise ValueError(
                         "element with no path: %s" % etree.tosring(r))
 
-                target = path.rsplit('/', 1)[-1]
+                target = attrib.get('target')
+                if target is None:
+                    target = path.rsplit('/', 1)[-1]
+
                 if target in targets:
-                    raise ValueError("Target name conflict: %s" % target)
+                        raise ValueError("Target name conflict: %s" % target)
                 targets.add(target)
 
-                name = r.attrib.get('name')
+                name = attrib.get('name')
                 res.append(klass(server, path, target, name))
 
         self.repos = res
