@@ -8,6 +8,10 @@ import logging
 logger = logging.getLogger('hgbundler')
 logger.setLevel(logging.DEBUG)
 
+from mercurial import hg
+from mercurial import commands as hg_commands
+import mercurial.ui
+HG_UI = mercurial.ui.ui()
 
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 
@@ -29,35 +33,51 @@ class Server(object):
             url = url[:-1]
         self.url = url
 
+    def getRepoUrl(self, path):
+        if not path.startswith('/'):
+            path = '/' + path
+        return self.url + path
 
-class Repo(object):
 
-    def __init__(self, server, path, target, name):
+class RepoDescriptor(object):
+
+    def __init__(self, remote_url, bundle_dir, target, name):
         # name is an additional name to qualify used by subclasses
-        self.server = server
-        self.url = server.url + '/' + path
+        self.remote_url = remote_url
         self.target = target
+        self.bundle_dir = bundle_dir
+        self.local_path = os.path.join(bundle_dir, target)
         self.name = name
+        self.repo = None # Mercurial repo
 
-    def make_clone(self, base_dir):
-        logging.info("Cloning %s to %s", self.url, self.target)
-        make_clone(self.url, base_dir, self.target)
+    def make_clone(self):
+        logging.info("Cloning %s to %s", self.remote_url, self.target)
+        make_clone(self.remote_url, self.bundle_dir, self.target)
 
+    def getRepo(self):
+        """Return mercurial repo object.
+        Raise an error if repo can't be found"""
+        if self.repo is None:
+            self.repo = hg.repository(HG_UI, self.local_path)
+        return self.repo
 
-class Tag(Repo):
+class Tag(RepoDescriptor):
 
-    def update(self, base_dir):
-        path = os.path.join(base_dir, self.target)
-        hg_up(path, self.name)
+    def update(self):
+        hg_commands.update(HG_UI, self.getRepo(), self.name)
 
-class Branch(Repo):
+class Branch(RepoDescriptor):
 
-    def update(self, base_dir):
-        path = os.path.join(base_dir, self.target)
+    def update(self):
+        """updates to named branch if any.
+        Caution: if user has created a new branch, this doesn't get back
+        to the default branch."""
+
         name = self.name
         if name is None:
-            name = 'default'
-        hg_up(path, name)
+            hg_commands.update(HG_UI, self.getRepo())
+        else:
+            hg_commands.update(HG_UI, self.getRepo(), name)
 
 
 class Bundle(object):
@@ -71,11 +91,11 @@ class Bundle(object):
                 "Not a bundle directory : %s (no MANIFEST_FILE)" % bundle_dir)
         self.tree = etree.parse(os.path.join(bundle_dir, MANIFEST_FILE))
         self.root = self.tree.getroot()
-        self.repos = None
+        self.descriptors = None
 
-    def getRepos(self):
-        if self.repos is not None:
-            return self.repos
+    def getRepoDescriptors(self):
+        if self.descriptors is not None:
+            return self.descriptors
 
         res = []
         targets = set()
@@ -103,18 +123,22 @@ class Bundle(object):
                 targets.add(target)
 
                 name = attrib.get('name')
-                res.append(klass(server, path, target, name))
 
-        self.repos = res
+                res.append(klass(server.getRepoUrl(path),
+                                 self.bundle_dir,
+                                 target, name))
+
+        self.descriptors = res
         return res
 
     def make_clones(self):
-        for repo in self.getRepos():
-            repo.make_clone(base_dir=self.bundle_dir)
+        for desc in self.getRepoDescriptors():
+            desc.make_clone()
+            desc.update()
 
     def update_clones(self):
-        for repo in self.getRepos():
-            repo.update(base_dir=self.bundle_dir)
+        for desc in self.getRepoDescriptors():
+            desc.update()
 
 if __name__ == '__main__':
     parser = OptionParser()
@@ -132,6 +156,5 @@ if __name__ == '__main__':
     command = arguments[0]
     if command == 'make-clones':
         bundle.make_clones()
-        bundle.update_clones()
     elif command == 'update-clones':
         bundle.update_clones()
