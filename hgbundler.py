@@ -9,6 +9,10 @@ from lxml import etree
 import logging
 logger = logging.getLogger('hgbundler')
 logger.setLevel(logging.DEBUG)
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(
+    logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s'))
+logger.addHandler(console_handler)
 
 from mercurial import hg
 from mercurial import commands as hg_commands
@@ -55,7 +59,7 @@ class RepoDescriptor(object):
     def make_clone(self):
         path = os.path.join(self.bundle_dir, self.target)
         if os.path.exists(path):
-            logger.info("Ignoring existing %s", path)
+            logger.info("Ignoring the existing %s", self.target)
             return
         logger.info("Cloning %s to %s", self.remote_url, self.target)
         make_clone(self.remote_url, self.bundle_dir, self.target)
