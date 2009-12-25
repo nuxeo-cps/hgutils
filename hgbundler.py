@@ -8,7 +8,7 @@ from lxml import etree
 
 import logging
 logger = logging.getLogger('hgbundler')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(
     logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s'))
@@ -24,7 +24,9 @@ ASIDE_REPOS = '.hgbundler'
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
-    logger.info("Cloning %s to %s", url, os.path.join(base_dir, target))
+    if not os.path.isdir(base_dir):
+        os.mkdir(base_dir)
+    logger.debug("Cloning %s to %s", url, os.path.join(base_dir, target))
     cmd = 'cd %s && hg clone %s %s' % (base_dir, url, target)
     logger.debug(cmd)
     os.system(cmd)
@@ -87,10 +89,11 @@ class RepoDescriptor(object):
             logger.debug("Ignoring the existing target path %s", self.target)
             return False
 
+        logger.info("Creating clone %s", self.local_path_rel)
         make_clone(self.remote_url, self.local_path)
 
         if self.is_sub:
-            logger.info("Extracting.")
+            logger.info("Extracting to %s", self.target)
             deepness = len(self.target.split(os.path.sep)) - 1
             local_to_base = os.path.join(*((os.path.pardir,)*deepness))
             os.symlink(os.path.join(local_to_base, ASIDE_REPOS,
@@ -193,11 +196,16 @@ if __name__ == '__main__':
                       default=os.getcwd(),
                       help="Specify the bundle directory (defaults to current"
                       " working directory)")
+    parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
+                      help="Sets the logging level to DEBUG")
 
     options, arguments = parser.parse_args()
     if not arguments:
         parser.error("Need a command")
         sys.exit(1)
+
+    if options.verbose:
+        logger.setLevel(logging.DEBUG)
 
     bundle = Bundle(options.bundle_dir)
 
