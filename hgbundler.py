@@ -57,10 +57,12 @@ class RepoDescriptor(object):
         self.repo = None # Mercurial repo
 
     def make_clone(self):
+        """Make the clone if needed and return True if done."""
+
         path = os.path.join(self.bundle_dir, self.target)
         if os.path.exists(path):
             logger.info("Ignoring the existing %s", self.target)
-            return
+            return False
         logger.info("Cloning %s to %s", self.remote_url, self.target)
         make_clone(self.remote_url, self.bundle_dir, self.target)
 
@@ -145,8 +147,8 @@ class Bundle(object):
 
     def make_clones(self):
         for desc in self.getRepoDescriptors():
-            desc.make_clone()
-            desc.update()
+            if desc.make_clone():
+                desc.update()
 
     def update_clones(self):
         for desc in self.getRepoDescriptors():
