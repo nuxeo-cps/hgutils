@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import sys
+
 from optparse import OptionParser
 from lxml import etree
 
@@ -75,8 +77,10 @@ class Branch(RepoDescriptor):
 
         name = self.name
         if name is None:
+            logger.info("Updating %s", self.target)
             hg_commands.update(HG_UI, self.getRepo())
         else:
+            logger.info("Updating %s to branch %s", self.target, name)
             hg_commands.update(HG_UI, self.getRepo(), name)
 
 
@@ -150,6 +154,7 @@ if __name__ == '__main__':
     options, arguments = parser.parse_args()
     if not arguments:
         parser.error("Need a command")
+        sys.exit(1)
 
     bundle = Bundle(options.bundle_dir)
 
