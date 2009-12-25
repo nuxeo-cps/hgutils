@@ -20,8 +20,11 @@ import mercurial.ui
 HG_UI = mercurial.ui.ui()
 
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
+ASIDE_REPOS = '.hgbundler'
 
-def make_clone(url, base_dir, target):
+def make_clone(url, target_path):
+    base_dir, target = os.path.split(target_path)
+    logger.info("Cloning %s to %s", url, os.path.join(base_dir, target))
     cmd = 'cd %s && hg clone %s %s' % (base_dir, url, target)
     logger.debug(cmd)
     os.system(cmd)
@@ -47,24 +50,53 @@ class Server(object):
 
 class RepoDescriptor(object):
 
-    def __init__(self, remote_url, bundle_dir, target, name):
+    def __init__(self, remote_url, bundle_dir, target, name, attrs):
         # name is an additional name to qualify used by subclasses
         self.remote_url = remote_url
         self.target = target
         self.bundle_dir = bundle_dir
-        self.local_path = os.path.join(bundle_dir, target)
         self.name = name
-        self.repo = None # Mercurial repo
+
+        subpath = attrs.get('subpath')
+        if subpath is None:
+            self.is_sub = False
+            self.local_path_rel = target
+        else:
+            self.is_sub = True
+            self.subpath = subpath
+            self.clone_target = self.remote_url.rsplit('/')[-1]
+            self.local_path_rel = os.path.join(ASIDE_REPOS, self.clone_target)
+
+        self.local_path = os.path.join(self.bundle_dir, self.local_path_rel)
+
+        self.repo = None # Mercurial repo (could not exist yet on fs)
+
+    def getAsideRepoPath(self):
+        """Find the path to repo if it's aside (subpath situation)"""
+        return os.path.join(ASIDE_REPOS, self.clone_target)
 
     def make_clone(self):
         """Make the clone if needed and return True if done."""
 
-        path = os.path.join(self.bundle_dir, self.target)
-        if os.path.exists(path):
-            logger.info("Ignoring the existing %s", self.target)
+        if os.path.exists(self.local_path):
+            logger.debug("Ignoring the existing clone for %s", self.target)
             return False
-        logger.info("Cloning %s to %s", self.remote_url, self.target)
-        make_clone(self.remote_url, self.bundle_dir, self.target)
+
+        target_path = os.path.join(self.bundle_dir, self.target)
+        if os.path.exists(target_path):
+            logger.debug("Ignoring the existing target path %s", self.target)
+            return False
+
+        make_clone(self.remote_url, self.local_path)
+
+        if self.is_sub:
+            logger.info("Extracting.")
+            deepness = len(self.target.split(os.path.sep)) - 1
+            local_to_base = os.path.join(*((os.path.pardir,)*deepness))
+            os.symlink(os.path.join(local_to_base, ASIDE_REPOS,
+                                    self.clone_target, self.subpath),
+                       target_path)
+        return True
 
     def getRepo(self):
         """Return mercurial repo object.
@@ -90,7 +122,8 @@ class Branch(RepoDescriptor):
             logger.info("Updating %s", self.target)
             hg_commands.update(HG_UI, self.getRepo())
         else:
-            logger.info("Updating %s to branch %s", self.target, name)
+            logger.info("Updating %s to branch %s", self.local_path_rel, name)
+
             hg_commands.update(HG_UI, self.getRepo(), name)
 
 
@@ -140,7 +173,7 @@ class Bundle(object):
 
                 res.append(klass(server.getRepoUrl(path),
                                  self.bundle_dir,
-                                 target, name))
+                                 target, name, attrib))
 
         self.descriptors = res
         return res

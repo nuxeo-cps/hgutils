@@ -40,6 +40,28 @@ As you can see, there are two types of components: tags and
 branches. The trunk being in Mercurial the default branch, there's no
 need to make a special case for it.
 
+Deeper svn externals
+--------------------
+
+There were some cases in the CPS subversion server where externals
+were used to point *inside* a product or a directory that's been
+exported as a repository (at least in ``CPSTramline``, in
+``nuxeo.lucene``).
+
+This is not part of mercurial logic to clone or export a part of a
+repo. Instead, we provide a workaround. The syntax is as follows
+(CPS-3-full bundle excerpt)::
+
+    <branch name="gracinet-fix-range"
+            target="CPSTramline/tramlinepath" path="tramline"
+            subpath="src/tramline/path"/>
+
+This results in a ``src/tramline/path`` subdirectory of a
+``tramline`` clone being symlinked as ``CPSTramline/tramlinepath``.
+The clone itself is stored in a hidden directory of the bundle
+(currently in ``.hgbundler``). Update operations will log the path
+to the clone.
+
 OPERATIONS
 ==========
 
