@@ -188,8 +188,6 @@ class Bundle(object):
             bdl = etree.parse(manifest)
             for j, subelt in enumerate(bdl.getroot()):
                 self.root.insert(position+j, subelt)
-        self.tree.write(sys.stdout)
-        print '\n'
         elt.tag = 'already-included-bundles'
         elt.text = ("\n include-bundles element kept for reference after " +
                     "performing the inclusion\n")
