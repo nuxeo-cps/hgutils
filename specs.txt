@@ -86,6 +86,9 @@ Remarks::
 Planned options::
 
  - including, with a change of server urls
+ - ignore some products while including (use-case:
+   private branch for a product, specified somewhere else in
+   the manifest)
 
 
 OPERATIONS
@@ -101,15 +104,15 @@ This avoids making useless hgbundler commands for ``push``, ``pull``, ``update``
 
 Also, this way, destructive operations like push/pull are explicit.
 
-hgbundler make-clones Prio: 2
------------------------------
+hgbundler make-clones (implemented)
+-----------------------------------
 
 This uses the server urls and the paths to clone all the involved
 repositories in the bundle directory.
 Automatically followed by ``update-clones``
 
-hgbundler update-clones Prio: 2
-------------------------------=
+hgbundler update-clones (implemented)
+-------------------------------------
 
 Each clone is updated on the tag or branch specified in the
 manifest.
@@ -165,8 +168,8 @@ Produce a tgz archive for the given tag (recursively calls archive on
 each clone for the corresponding tag)
 
 
-hgbundler make-bundle
----------------------
+hgbundler make-bundle (Prio: 5)
+-------------------------------
 
 Create the manifest file in the current directory from the clones that
 can be found there (choices tags/branches ?)
