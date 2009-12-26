@@ -123,19 +123,29 @@ class Tag(RepoDescriptor):
 
 class Branch(RepoDescriptor):
 
+    def findDefaultBranch(self):
+        HG_UI.pushbuffer()
+        hg_commands.branches(HG_UI, self.getRepo())
+        branches = HG_UI.popbuffer()
+        branches = [br.split()[0].strip() for br in branches.split('\n') if br]
+        logger.debug("Found branches: %s", branches)
+        if 'default' in branches:
+            return 'default'
+        if len(branches) == 1:
+            return branches[0]
+
+        raise ValueError(("Could not guess default branch in %s. "
+                          "Please specify.") % self.local_path_rel)
+
     def update(self):
-        """updates to named branch if any.
-        Caution: if user has created a new branch, this doesn't get back
-        to the default branch."""
+        """updates to named branch if any, or to the default one."""
 
         name = self.name
         if name is None:
-            logger.info("Updating %s", self.target)
-            hg_commands.update(HG_UI, self.getRepo())
-        else:
-            logger.info("Updating %s to branch %s", self.local_path_rel, name)
+            name = self.findDefaultBranch()
+        logger.info("Updating %s to branch %s", self.local_path_rel, name)
 
-            hg_commands.update(HG_UI, self.getRepo(), name)
+        hg_commands.update(HG_UI, self.getRepo(), name)
 
 
 class Bundle(object):
