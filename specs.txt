@@ -62,6 +62,32 @@ The clone itself is stored in a hidden directory of the bundle
 (currently in ``.hgbundler``). Update operations will log the path
 to the clone.
 
+The <include-bundles> directive
+-------------------------------
+
+To avoid repeating over and over a big list of references, you may
+specify bundles to include. Example for the CPS-3-full bundle::
+
+   <include-bundles
+       server-url="ssh://mercurial.racinet.org//home/mercurial/CPS">
+     <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
+   </include-bundles>
+
+Remarks::
+
+ - inclusion nesting is neither possible nor planned
+
+ - releasing (see below) a bundle with inclusions behaves
+   exactly as if one had copy-pasted the included bundle in the
+   bundle being released. In particular, this does *not*
+   release the included bundle, but releases the components if
+   needed. There aren't any more includes in the resulting bundle tag.
+
+Planned options::
+
+ - including, with a change of server urls
+
+
 OPERATIONS
 ==========
 

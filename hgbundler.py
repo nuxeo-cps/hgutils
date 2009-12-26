@@ -21,6 +21,7 @@ HG_UI = mercurial.ui.ui()
 
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 ASIDE_REPOS = '.hgbundler'
+INCLUDES = '.hgbundler_incl'
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
@@ -95,10 +96,17 @@ class RepoDescriptor(object):
         if self.is_sub:
             logger.info("Extracting to %s", self.target)
             deepness = len(self.target.split(os.path.sep)) - 1
-            local_to_base = os.path.join(*((os.path.pardir,)*deepness))
-            os.symlink(os.path.join(local_to_base, ASIDE_REPOS,
-                                    self.clone_target, self.subpath),
-                       target_path)
+
+            if deepness:
+                local_to_base = os.path.join(*((os.path.pardir,)*deepness))
+            else:
+                local_to_base = ''
+
+            src = os.path.join(local_to_base, ASIDE_REPOS,
+                                    self.clone_target, self.subpath)
+            logger.debug("Making symlink %s -> %s", target_path, src)
+            os.symlink(src, target_path)
+
         return True
 
     def getRepo(self):
@@ -142,41 +150,67 @@ class Bundle(object):
         self.tree = etree.parse(os.path.join(bundle_dir, MANIFEST_FILE))
         self.root = self.tree.getroot()
         self.descriptors = None
+        self.known_targets = set()
+
+    def makeRepo(self, server, r):
+        klass = self.element2class.get(r.tag)
+        if klass is None:
+            raise ValueError("Unknown repo mode: %s", r.tag)
+
+        attrib = r.attrib
+        path = attrib.get('path')
+        if path is None:
+            raise ValueError(
+                "element with no path: %s" % etree.tosring(r))
+
+        target = attrib.get('target')
+        if target is None:
+            target = path.rsplit('/', 1)[-1]
+
+        if target in self.known_targets:
+                raise ValueError("Target name conflict: %s" % target)
+        self.known_targets.add(target)
+
+        name = attrib.get('name')
+
+        return klass(server.getRepoUrl(path), self.bundle_dir,
+                     target, name, attrib)
+
+    def includeBundles(self, elt, position):
+        server = Server(elt.attrib['server-url'])
+        for r in elt:
+            repo = self.makeRepo(server, r)
+            repo.make_clone()
+            repo.update()
+
+            manifest = os.path.join(self.bundle_dir, repo.target,
+                                    MANIFEST_FILE)
+            bdl = etree.parse(manifest)
+            for j, subelt in enumerate(bdl.getroot()):
+                self.root.insert(position+j, subelt)
+        self.tree.write(sys.stdout)
+        print '\n'
+        elt.tag = 'already-included-bundles'
+        elt.text = ("\n include-bundles element kept for reference after " +
+                    "performing the inclusion\n")
 
     def getRepoDescriptors(self):
         if self.descriptors is not None:
             return self.descriptors
 
         res = []
-        targets = set()
+
+        for i, elt in enumerate(self.root):
+            if elt.tag == 'include-bundles':
+                self.includeBundles(elt, i)
+
+        # need to iterate again, because includes may have changed the children
         for s in self.root:
             if s.tag != 'server':
                 continue
             server = Server(s.attrib['url'])
             for r in s:
-                klass = self.element2class.get(r.tag)
-                if klass is None:
-                    continue
-
-                attrib = r.attrib
-                path = attrib.get('path')
-                if path is None:
-                    raise ValueError(
-                        "element with no path: %s" % etree.tosring(r))
-
-                target = attrib.get('target')
-                if target is None:
-                    target = path.rsplit('/', 1)[-1]
-
-                if target in targets:
-                        raise ValueError("Target name conflict: %s" % target)
-                targets.add(target)
-
-                name = attrib.get('name')
-
-                res.append(klass(server.getRepoUrl(path),
-                                 self.bundle_dir,
-                                 target, name, attrib))
+                res.append(self.makeRepo(server, r))
 
         self.descriptors = res
         return res
