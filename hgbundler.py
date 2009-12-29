@@ -15,6 +15,7 @@ console_handler.setFormatter(
 logger.addHandler(console_handler)
 
 from mercurial import hg
+from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
 import mercurial.ui
 HG_UI = mercurial.ui.ui()
@@ -116,36 +117,54 @@ class RepoDescriptor(object):
             self.repo = hg.repository(HG_UI, self.local_path)
         return self.repo
 
+    def update(self):
+        """Update to named branch/tag if any, or to the default one."""
+
+        name, node = self.head()
+        logger.info("Updating %s to node %s (%s)", self.local_path_rel,
+                    hg_hex(node), name)
+        hg.update(self.getRepo(), node)
+
+
 class Tag(RepoDescriptor):
 
-    def update(self):
-        hg_commands.update(HG_UI, self.getRepo(), self.name)
+    def head(self):
+        """Return name and node for the tag."""
+        tags = self.getRepo().tags()
+        name = self.name
+        try:
+            return name, tags[name]
+        except KeyError:
+            raise ValueError("Tag '%s' not found in repo %s", name,
+                             self.local_path_rel)
 
 class Branch(RepoDescriptor):
 
-    def findDefaultBranch(self):
-        HG_UI.pushbuffer()
-        hg_commands.branches(HG_UI, self.getRepo())
-        branches = HG_UI.popbuffer()
-        branches = [br.split()[0].strip() for br in branches.split('\n') if br]
-        logger.debug("Found branches: %s", branches)
-        if 'default' in branches:
-            return 'default'
-        if len(branches) == 1:
-            return branches[0]
+    def head(self):
+        """Return name and node for branch head.
 
-        raise ValueError(("Could not guess default branch in %s. "
-                          "Please specify.") % self.local_path_rel)
-
-    def update(self):
-        """updates to named branch if any, or to the default one."""
-
+        Finds the default branch if none is specified.
+        """
+        branches = self.getRepo().branchtags()
+        logger.debug("Found branches: %s", branches.keys())
         name = self.name
         if name is None:
-            name = self.findDefaultBranch()
-        logger.info("Updating %s to branch %s", self.local_path_rel, name)
+            # TODO filter active branches only at this point
+            if len(branches) > 1:
+                logger.debug(
+                    "No specified branch, found several, trying 'default'")
+                name = 'default'
+            else:
+                name = branches.keys()[0]
+                logger.debug("Using the unique branch '%s" % name)
 
-        hg_commands.update(HG_UI, self.getRepo(), name)
+        try:
+            node = branches[name]
+        except KeyError:
+            raise ValueError((
+                "Wrong specified or guessed branch '%s' for %s."
+                "Please specify an existing one") % (name, self.local_path_rel))
+        return name, node
 
 
 class Bundle(object):
