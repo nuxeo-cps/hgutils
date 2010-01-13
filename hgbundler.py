@@ -182,8 +182,13 @@ class Bundle(object):
         self.known_targets = set()
 
     def makeRepo(self, server, r):
-        klass = self.element2class.get(r.tag)
+        etag = r.tag
+        if callable(etag):
+            # This is probably just an XML comment (lxml only)
+            return None
+        klass = self.element2class.get(etag)
         if klass is None:
+            import pdb; pdb.set_trace()
             raise ValueError("Unknown repo mode: %s", r.tag)
 
         attrib = r.attrib
@@ -209,6 +214,8 @@ class Bundle(object):
         server = Server(elt.attrib['server-url'])
         for r in elt:
             repo = self.makeRepo(server, r)
+            if repo is None: # happens, e.g, with XML comments
+                continue
             repo.make_clone()
             repo.update()
 
@@ -237,7 +244,9 @@ class Bundle(object):
                 continue
             server = Server(s.attrib['url'])
             for r in s:
-                res.append(self.makeRepo(server, r))
+                repo = self.makeRepo(server, r)
+                if repo is not None:
+                    res.append(repo)
 
         self.descriptors = res
         return res
