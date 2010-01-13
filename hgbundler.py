@@ -41,22 +41,36 @@ def hg_up(path, name):
 
 class Server(object):
 
-    def __init__(self, url):
-        if url.endswith('/'):
-            url = url[:-1]
-        self.url = url
+    @classmethod
+    def _normTrailingSlash(self, url):
+        if url is None:
+            return None
+        return url.endswith('/') and url[:-1] or url
 
-    def getRepoUrl(self, path):
+    def __init__(self, attrib):
+        self.name = attrib.get('name')
+        self.url = self._normTrailingSlash(attrib.get('url'))
+        if self.url is None:
+            raise ValueError('Missing url in serveur with name=%s' % self.name)
+        self.push_url = self._normTrailingSlash(attrib.get('push-url'))
+
+    def getRepoUrl(self, path, push=False):
         if not path.startswith('/'):
             path = '/' + path
+        if push:
+            if self.push_url is None:
+                return None
+            return self.push_url + path
         return self.url + path
 
 
 class RepoDescriptor(object):
 
-    def __init__(self, remote_url, bundle_dir, target, name, attrs):
+    def __init__(self, remote_url, bundle_dir, target, name, attrs,
+                 remote_url_push=None):
         # name is an additional name to qualify used by subclasses
         self.remote_url = remote_url
+        self.remote_url_push = remote_url_push
         self.target = target
         self.bundle_dir = bundle_dir
         self.name = name
@@ -93,6 +107,8 @@ class RepoDescriptor(object):
 
         logger.info("Creating clone %s", self.local_path_rel)
         make_clone(self.remote_url, self.local_path)
+        if self.remote_url_push:
+            self.updateUrls()
 
         if self.is_sub:
             logger.info("Extracting to %s", self.target)
@@ -147,7 +163,7 @@ class RepoDescriptor(object):
                 if l.startswith('[paths]'):
                     # Entering the paths section: dumping right away our default
                     in_paths = True
-                    for p in ('default', 'default_push'):
+                    for p in ('default', 'default-push'):
                         v = self.getRepo().ui.config('paths', p)
                         if v is not None:
                             wlines.append('%s = %s\n' % (p, v))
@@ -156,13 +172,15 @@ class RepoDescriptor(object):
         fd.writelines(wlines)
         fd.close()
 
-    def updateUrl(self):
+    def updateUrls(self):
         ui = self.getRepo().ui
         current = ui.config('paths', 'default')
-        if current == self.remote_url:
+        current_push = ui.config('paths', 'default-push')
+        if current == self.remote_url and current_push == self.remote_url_push:
             return
 
         ui.setconfig('paths', 'default', self.remote_url)
+        ui.setconfig('paths', 'default-push', self.remote_url_push)
         self.writeHgrcPaths()
 
 class Tag(RepoDescriptor):
@@ -247,7 +265,8 @@ class Bundle(object):
         name = attrib.get('name')
 
         return klass(server.getRepoUrl(path), self.bundle_dir,
-                     target, name, attrib)
+                     target, name, attrib,
+                     remote_url_push=server.getRepoUrl(path, push=True))
 
     def includeBundles(self, elt, position):
         server = Server(elt.attrib['server-url'])
@@ -281,7 +300,7 @@ class Bundle(object):
         for s in self.root:
             if s.tag != 'server':
                 continue
-            server = Server(s.attrib['url'])
+            server = Server(s.attrib)
             for r in s:
                 repo = self.makeRepo(server, r)
                 if repo is not None:
@@ -301,7 +320,7 @@ class Bundle(object):
 
     def clones_refresh_url(self):
         for desc in self.getRepoDescriptors():
-            desc.updateUrl()
+            desc.updateUrls()
 
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',

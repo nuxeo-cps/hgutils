@@ -40,6 +40,16 @@ As you can see, there are two types of components: tags and
 branches. The trunk being in Mercurial the default branch, there's no
 need to make a special case for it.
 
+There is an optional attribute to specify the default server
+to push to. See the section about paths in ```man hgrc```. Example::
+
+  <server name="CPS products at Nuxeo"
+          url="http://hgcps.nuxeo.org"
+          push-url="https://hgcps.nuxeo.org">
+
+The name attribute is totally optional and isn't leveraged much right
+now (for error messages mostly).
+
 Deeper svn externals
 --------------------
 
