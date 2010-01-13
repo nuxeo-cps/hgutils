@@ -119,8 +119,8 @@ manifest.
 
 Question: should this command also create missing clones ?
 
-hgbundler clones-refresh-url Prio: 3
-------------------------------------
+hgbundler clones-refresh-url (implemented)
+------------------------------------------
 
 This refreshes clones default paths (specified
 in ``.hg/hgrc`` files ) to base them on the bundle server urls.
@@ -139,6 +139,14 @@ converse of ``clones-refresh-url``
 Use case: make one of the clones point to a private server
 (for a local branch, for instance). Then update the bundle to take
 that into account.
+
+Problem: this method will probably need to create new server objects,
+but it won't have just one possibility for that (cutting a path is not
+unique). OTOH, one can assume that just a few repos have been
+relocated in the typical use-case, i.e. it's simpler for the user to
+edit the BUNDLE_MANIFEST and copy/paste from hgrc, than for us to implement a
+complicated and unsatisfactory logic.
+
 
 hgbundler release [tag] Prio: 4
 -------------------------------

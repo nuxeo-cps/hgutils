@@ -125,6 +125,45 @@ class RepoDescriptor(object):
                     hg_hex(node), name)
         hg.update(self.getRepo(), node)
 
+    def writeHgrcPaths(self):
+        """Write the paths registered in config object to hgrc."""
+        hgrc = os.path.join(self.local_path, '.hg', 'hgrc')
+        fd = open(hgrc, 'r')
+        rlines = fd.readlines()
+        fd.close()
+
+        wlines = []
+        in_paths = False
+        for line in rlines:
+            l = line.strip()
+            if in_paths:
+                if l.startswith('default'): # skip paths we are replacing
+                    continue
+                wlines.append(line)
+                if l.startswith('['): # end of paths section
+                    in_paths = False
+            else:
+                wlines.append(line)
+                if l.startswith('[paths]'):
+                    # Entering the paths section: dumping right away our default
+                    in_paths = True
+                    for p in ('default', 'default_push'):
+                        v = self.getRepo().ui.config('paths', p)
+                        if v is not None:
+                            wlines.append('%s = %s\n' % (p, v))
+
+        fd = open(hgrc, 'w')
+        fd.writelines(wlines)
+        fd.close()
+
+    def updateUrl(self):
+        ui = self.getRepo().ui
+        current = ui.config('paths', 'default')
+        if current == self.remote_url:
+            return
+
+        ui.setconfig('paths', 'default', self.remote_url)
+        self.writeHgrcPaths()
 
 class Tag(RepoDescriptor):
 
@@ -260,9 +299,14 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             desc.update()
 
+    def clones_refresh_url(self):
+        for desc in self.getRepoDescriptors():
+            desc.updateUrl()
+
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',
-                'update-clones': 'update_clones'}
+                'update-clones': 'update_clones',
+                'clones-refresh-url': 'clones_refresh_url'}
     usage = "usage: %prog [options] " + '|'.join(commands.keys())
 
     parser = OptionParser(usage=usage)
