@@ -261,7 +261,12 @@ class Bundle(object):
             desc.update()
 
 if __name__ == '__main__':
-    parser = OptionParser()
+    commands = {'make-clones': 'make_clones',
+                'update-clones': 'update_clones'}
+    usage = "usage: %prog [options] " + '|'.join(commands.keys())
+
+    parser = OptionParser(usage=usage)
+
     parser.add_option('-d', '--bundle-directory', dest='bundle_dir',
                       default=os.getcwd(),
                       help="Specify the bundle directory (defaults to current"
@@ -280,7 +285,8 @@ if __name__ == '__main__':
     bundle = Bundle(options.bundle_dir)
 
     command = arguments[0]
-    if command == 'make-clones':
-        bundle.make_clones()
-    elif command == 'update-clones':
-        bundle.update_clones()
+    meth = commands.get(command)
+    if meth is None:
+        parser.error("Unknown command: " + command)
+
+    getattr(bundle, meth)()
