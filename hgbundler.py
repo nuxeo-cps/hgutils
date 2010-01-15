@@ -132,6 +132,45 @@ class RepoDescriptor(object):
                     hg_hex(node), name)
         hg.update(self.getRepo(), node)
 
+    def writeHgrcPaths(self):
+        """Write the paths registered in config object to hgrc."""
+        hgrc = os.path.join(self.local_path, '.hg', 'hgrc')
+        fd = open(hgrc, 'r')
+        rlines = fd.readlines()
+        fd.close()
+
+        wlines = []
+        in_paths = False
+        for line in rlines:
+            l = line.strip()
+            if in_paths:
+                if l.startswith('default'): # skip paths we are replacing
+                    continue
+                wlines.append(line)
+                if l.startswith('['): # end of paths section
+                    in_paths = False
+            else:
+                wlines.append(line)
+                if l.startswith('[paths]'):
+                    # Entering the paths section: dumping right away our default
+                    in_paths = True
+                    for p in ('default', 'default_push'):
+                        v = self.getRepo().ui.config('paths', p)
+                        if v is not None:
+                            wlines.append('%s = %s\n' % (p, v))
+
+        fd = open(hgrc, 'w')
+        fd.writelines(wlines)
+        fd.close()
+
+    def updateUrl(self):
+        ui = self.getRepo().ui
+        current = ui.config('paths', 'default')
+        if current == self.remote_url:
+            return
+
+        ui.setconfig('paths', 'default', self.remote_url)
+        self.writeHgrcPaths()
 
 class Tag(RepoDescriptor):
 
@@ -189,8 +228,13 @@ class Bundle(object):
         self.known_targets = set()
 
     def makeRepo(self, server, r):
-        klass = self.element2class.get(r.tag)
+        etag = r.tag
+        if callable(etag):
+            # This is probably just an XML comment (lxml only)
+            return None
+        klass = self.element2class.get(etag)
         if klass is None:
+            import pdb; pdb.set_trace()
             raise ValueError("Unknown repo mode: %s", r.tag)
 
         attrib = r.attrib
@@ -216,6 +260,8 @@ class Bundle(object):
         server = Server(elt.attrib['server-url'])
         for r in elt:
             repo = self.makeRepo(server, r)
+            if repo is None: # happens, e.g, with XML comments
+                continue
             repo.make_clone()
             repo.update()
 
@@ -244,7 +290,9 @@ class Bundle(object):
                 continue
             server = Server(s.attrib['url'])
             for r in s:
-                res.append(self.makeRepo(server, r))
+                repo = self.makeRepo(server, r)
+                if repo is not None:
+                    res.append(repo)
 
         self.descriptors = res
         return res
@@ -258,8 +306,18 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             desc.update()
 
+    def clones_refresh_url(self):
+        for desc in self.getRepoDescriptors():
+            desc.updateUrl()
+
 if __name__ == '__main__':
-    parser = OptionParser()
+    commands = {'make-clones': 'make_clones',
+                'update-clones': 'update_clones',
+                'clones-refresh-url': 'clones_refresh_url'}
+    usage = "usage: %prog [options] " + '|'.join(commands.keys())
+
+    parser = OptionParser(usage=usage)
+
     parser.add_option('-d', '--bundle-directory', dest='bundle_dir',
                       default=os.getcwd(),
                       help="Specify the bundle directory (defaults to current"
@@ -278,7 +336,8 @@ if __name__ == '__main__':
     bundle = Bundle(options.bundle_dir)
 
     command = arguments[0]
-    if command == 'make-clones':
-        bundle.make_clones()
-    elif command == 'update-clones':
-        bundle.update_clones()
+    meth = commands.get(command)
+    if meth is None:
+        parser.error("Unknown command: " + command)
+
+    getattr(bundle, meth)()
