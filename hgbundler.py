@@ -4,8 +4,6 @@ import os
 import sys
 
 from optparse import OptionParser
-from lxml import etree
-
 import logging
 logger = logging.getLogger('hgbundler')
 logger.setLevel(logging.INFO)
@@ -13,6 +11,15 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(
     logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s'))
 logger.addHandler(console_handler)
+
+try:
+    from lxml import etree
+except ImportError:
+    try:
+        from elementtree import ElementTree as etree
+    except ImportError:
+        logger.fatal("Sorry, need either elementtree or lxml")
+        sys.exit(1)
 
 from mercurial import hg
 from mercurial.node import short as hg_hex
