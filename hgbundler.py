@@ -56,9 +56,14 @@ class Server(object):
 
     def __init__(self, attrib):
         self.name = attrib.get('name')
-        self.url = self._normTrailingSlash(attrib.get('url'))
-        if self.url is None:
+        url = attrib.get('url')
+        if url is None:
+            url = attrib.get('server-url') # for include-bundles
+        self.url = url = self._normTrailingSlash(url)
+
+        if url is None:
             raise ValueError('Missing url in serveur with name=%s' % self.name)
+
         self.push_url = self._normTrailingSlash(attrib.get('push-url'))
 
     def getRepoUrl(self, path, push=False):
@@ -276,7 +281,7 @@ class Bundle(object):
                      remote_url_push=server.getRepoUrl(path, push=True))
 
     def includeBundles(self, elt, position):
-        server = Server(elt.attrib['server-url'])
+        server = Server(elt.attrib)
         for r in elt:
             repo = self.makeRepo(server, r)
             if repo is None: # happens, e.g, with XML comments
