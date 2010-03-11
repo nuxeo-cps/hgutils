@@ -410,7 +410,7 @@ First release built by: %s at: %s
     def tag(self):
         tag = self.version_new[1]
         msg = "hgbundler made release tag"
-        hg_commands.tag(self.repo.ui(), self.repo, tag, message=msg)
+        hg_commands.tag(self.repo.ui, self.repo, tag, message=msg)
         return tag
 
 class Branch(RepoDescriptor):
@@ -538,9 +538,17 @@ class Bundle(object):
         self.root = self.tree.getroot()
         self.descriptors = None
         self.known_targets = set()
+        self.bundle_repo = None
 
     def getManifestPath(self):
         return os.path.join(self.bundle_dir, MANIFEST_FILE)
+
+    def getBundleRepo(self):
+        """Return mercurial repo object for the bundle itself
+        Raise an error if repo can't be found"""
+        if self.bundle_repo is None:
+            self.bundle_repo = hg.repository(HG_UI, self.bundle_dir)
+        return self.bundle_repo
 
     def makeRepo(self, server, r, new=True):
         """Make a repo descriptor from server instance and xml element.
@@ -651,10 +659,29 @@ class Bundle(object):
         logger.fatal("No clone with target '%s'" % target)
         return 1
 
-    def release(self, options=None):
+    def release(self, release_name, options=None):
         """Release the whole bundle."""
+        bundle_repo = self.getBundleRepo()
+        if release_name in bundle_repo.branchtags():
+            logger.critical("There is already a release '%s' for this bundle",
+                            release_name)
+            return 1
 
         new_tags = {}
+
+        ctx = bundle_repo[None]
+        current_node = ctx.node()
+        if current_node is None:
+            parents = ctx.parents()
+            if len(parents) != 1:
+                logger.critical("Current bundle state has several parents. "
+                                "Uncommited merge ? Aborting.")
+                return 1
+            ctx = parents[0]
+        current_node = ctx.node()
+        current_rev = ctx.rev()
+        logger.debug("Currently at rev %s (%s)", parents[0].rev(),
+                     hg_hex(current_node))
 
         # Release of all repos
         for desc in self.getRepoDescriptors():
@@ -667,6 +694,9 @@ class Bundle(object):
                     multiple_heads=options.multiple_heads)
             except RepoReleaseError:
                 return 1
+
+        # create branch
+        hg_commands.branch(bundle_repo.ui, bundle_repo, release_name)
 
         # update xml tree
         for s in self.root.getchildren():
@@ -694,13 +724,27 @@ class Bundle(object):
             'tidy --wrap 79 --indent-attributes yes '
             '--indent yes --indent-spaces 2 -asxml -xml ')
         self.tree.write(tidy_in)
-        stdin.close()
+        tidy_in.close()
         formatted = tidy_out.read()
         tidy_out.close()
 
         f = open(self.getManifestPath(), 'w')
         f.write(formatted)
         f.close()
+
+        # commit
+        bundle_repo.commit(text="hgbundler update manifest for release")
+
+        # tag
+        hg_commands.tag(bundle_repo.ui, bundle_repo, release_name,
+                        message="hgbundler setting tag")
+
+        #TODO mark branch as inactive ?
+        # Getting back to current node
+        logger.info("Getting back to rev %s (%s)", current_rev,
+                     hg_hex(current_node))
+        hg.update(bundle_repo, current_node)
+
 
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',
@@ -709,7 +753,14 @@ if __name__ == '__main__':
                 'release-clone': 'release_clone',
                 'release-bundle': 'release'}
     usage = "usage: %prog [options] " + '|'.join(commands.keys())
+    usage += """ [command args] \n
 
+    command arguments:
+
+    command             arguments        comments
+    ----------------------------------------------
+    release-bundle      <release name>   mandatory
+"""
     parser = OptionParser(usage=usage)
 
     parser.add_option('-d', '--bundle-directory', dest='bundle_dir',
