@@ -30,6 +30,7 @@ except ImportError:
 from mercurial import hg
 from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
+import mercurial.patch
 import mercurial.ui
 HG_UI = mercurial.ui.ui()
 
@@ -218,7 +219,7 @@ class RepoDescriptor(object):
 
 class Tag(RepoDescriptor):
 
-    def release(self):
+    def release(self, **kw):
         logger.warn("No need to perform release on tag %s for target %s",
                     self.name, self.target)
 
@@ -265,7 +266,8 @@ PKG_RELEASE=%s
 """
 
 
-    def __init__(self, desc):
+    def __init__(self, desc, release_again=False):
+        self.release_again = release_again
         self.desc = desc
         self.repo = desc.getRepo()
         self.branch = desc.getName()
@@ -358,10 +360,30 @@ First release built by: %s at: %s
         self.version_str = ret[1]
         self.release_nr = ret[2] and int(ret[2]) or None
 
+    def changedSinceTag(self, node):
+        tag_ctx = self.repo[node]
+        children = tag_ctx.children()
+        if len(children) != 1:
+            logger.error("Tag should have exactly one child (tag commit)")
+            raise RepoReleaseError
+        children = children[0].children()
+        if len(children) != 1:
+            logger.error("Tag commit should have exactly one child "
+                         "(CHANGES init)")
+            raise RepoReleaseError
+        node1 = children[0].node()
+        logger.debug("Checking diff since changeset %s", hg_hex(node1))
+        it = mercurial.patch.diff(self.repo, node1=node1)
+        try:
+            it.next()
+        except StopIteration:
+            return False
+        return True
+
     def newVersion(self):
         """Computes the new version of the product.
 
-        Return (version, release nr)
+        Return False is no release is to be done.
         """
         changes = self.changes
         name = self.product_name
@@ -370,17 +392,28 @@ First release built by: %s at: %s
         version_str = self.version_str
         version = parseVersionString(version_str)
         if not filter(None, changes) or not version:
-            if not version_str in self.repo.tags():
+            tag_node = self.repo.tags().get(self.version_str)
+            if tag_node is None:
                 if self.version_str:
                     # need to create the tag
                     return self.version_str, self.release_nr
                 else:
                     # not a versioned product
-                    return [None, None]
+                    return False
 
-            if not self.release_again and self.status != 'new_version':
-                # no change
-                return [None, None]
+            if self.changedSinceTag(tag_node):
+                if not self.release_again:
+                    logger.error("Changes since tag %s for %s (branch '%s') "
+                                 "but empty CHANGES file",
+                                 self.version_str, self.desc.local_path_rel,
+                                 self.desc.getName())
+                    raise RepoReleaseError()
+            else:
+                logger.info("Already released: %s (branch '%s') as tag %s. "
+                            "Nothing to do",
+                            self.desc.local_path_rel, self.desc.getName(),\
+                            self.version_str)
+                return False
 
         if changes[0] or changes[1] or changes[3]:
             # any requires/features/int. features
@@ -406,6 +439,7 @@ First release built by: %s at: %s
             # setup branch flag
             str_version += '-' + self.branch
         self.version_new = [str_version, str(release)]
+        return True
 
     def tag(self):
         tag = self.version_new[1]
@@ -493,7 +527,7 @@ class Branch(RepoDescriptor):
                              name, self.local_path_rel)
                 raise RepoReleaseError(MULTIPLE_HEADS)
 
-    def release(self, multiple_heads=False):
+    def release(self, multiple_heads=False, release_again=False):
         if not self.isHgBundlerManaged():
             logger.info("Does not look to be managed by hgbundler : %s",
                         self.local_path_rel)
@@ -505,8 +539,10 @@ class Branch(RepoDescriptor):
         logger.info("Performing release of branch %s for %s",
                     name, self.local_path_rel)
 
-        releaser = Releaser(self)
-        releaser.newVersion()
+        releaser = Releaser(self, release_again=release_again)
+        if not releaser.newVersion():
+            return
+
         releaser.updateVersionFiles()
         self.getRepo().commit(
             text="hgbundler prepared version files for release")
@@ -651,7 +687,8 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             if desc.target == target:
                 try:
-                    desc.release(multiple_heads=options.multiple_heads)
+                    desc.release(multiple_heads=options.multiple_heads,
+                                 release_again=options.release_again)
                     return 0
                 except RepoReleaseError:
                         return 1
@@ -772,6 +809,10 @@ if __name__ == '__main__':
                       action="store_true",
                       help="While releasing, allow multiple heads situations."
                       "The tip of the branch will then be used")
+    parser.add_option('--release-again',
+                      dest='release_again',
+                      action="store_true",
+                      help="Allow releasing again clones")
     parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
                       help="Sets the logging level to DEBUG")
 
