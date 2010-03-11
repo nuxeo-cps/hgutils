@@ -410,7 +410,7 @@ First release built by: %s at: %s
     def tag(self):
         tag = self.version_new[1]
         msg = "hgbundler made release tag"
-        hg_commands.tag(HG_UI, self.repo, tag, message=msg)
+        hg_commands.tag(self.repo.ui(), self.repo, tag, message=msg)
         return tag
 
 class Branch(RepoDescriptor):
@@ -689,14 +689,14 @@ class Bundle(object):
 
         # write new manifest (through tidy since pretty_print not always there)
         # TODO rough way of doing, even with the pipe
-        stdout, stdin, stderr = popen2.popen3(
+
+        tidy_out, tidy_in, tidy_err = popen2.popen3(
             'tidy --wrap 79 --indent-attributes yes '
             '--indent yes --indent-spaces 2 -asxml -xml ')
-
-        self.tree.write(stdin)
+        self.tree.write(tidy_in)
         stdin.close()
-        formatted = stdout.read()
-        stdout.close()
+        formatted = tidy_out.read()
+        tidy_out.close()
 
         f = open(self.getManifestPath(), 'w')
         f.write(formatted)
