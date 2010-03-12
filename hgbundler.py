@@ -281,8 +281,9 @@ PKG_RELEASE=%s
 """
 
 
-    def __init__(self, desc, release_again=False):
+    def __init__(self, desc, release_again=False, increment_major=False):
         self.release_again = release_again
+        self.increment_major = increment_major
         self.desc = desc
         self.repo = desc.getRepo()
         self.branch = desc.getName()
@@ -398,7 +399,9 @@ First release built by: %s at: %s
     def newVersion(self):
         """Computes the new version of the product.
 
-        Return False is no release is to be done.
+        Return True if a new tag must be made,
+               False if an existing tag must be used instead of the branch,
+               None if no action is to be taken
         """
         changes = self.changes
         name = self.product_name
@@ -414,7 +417,7 @@ First release built by: %s at: %s
                     return self.version_str, self.release_nr
                 else:
                     # not a versioned product
-                    return False
+                    return None
 
             if self.changedSinceTag(tag_node):
                 if not self.release_again:
@@ -542,7 +545,8 @@ class Branch(RepoDescriptor):
                              name, self.local_path_rel)
                 raise RepoReleaseError(MULTIPLE_HEADS)
 
-    def release(self, multiple_heads=False, release_again=False):
+    def release(self, multiple_heads=False, release_again=False,
+                increment_major=False):
         if not self.isHgBundlerManaged():
             logger.info("Does not look to be managed by hgbundler : %s",
                         self.local_path_rel)
@@ -554,19 +558,24 @@ class Branch(RepoDescriptor):
         logger.info("Performing release of branch %s for %s",
                     name, self.local_path_rel)
 
-        releaser = Releaser(self, release_again=release_again)
-        if not releaser.newVersion():
+        releaser = Releaser(self, release_again=release_again,
+                            increment_major=increment_major)
+
+        to_tag = releaser.newVersion()
+        if to_tag is None:
             return
+        elif to_tag:
+            releaser.updateVersionFiles()
+            self.getRepo().commit(
+                text="hgbundler prepared version files for release")
+            tag_str = releaser.tag()
+            releaser.initChangesFile()
+            self.getRepo().commit(text="hgbundler init new CHANGES file")
+        else:
+            tag_str = releaser.version_str
 
-        releaser.updateVersionFiles()
-        self.getRepo().commit(
-            text="hgbundler prepared version files for release")
-        tagged = releaser.tag()
-        releaser.initChangesFile()
-        self.getRepo().commit(text="hgbundler init new CHANGES file")
-
-        return Tag(self.remote_url, self.bundle_dir, self.target, tagged,
-                   self.xml_attrs)
+        return Tag(self.remote_url, self.bundle_dir, self.target, tag_str,
+                       self.xml_attrs)
 
     def tip(self):
         """Return the tip of this branch."""
@@ -708,7 +717,13 @@ class Bundle(object):
             if desc.target == target:
                 try:
                     desc.release(multiple_heads=options.multiple_heads,
-                                 release_again=options.release_again)
+                                 release_again=options.release_again,
+                                 increment_major=options.increment_major)
+                    msg = "Release of %s (branch '%s') done. "
+                    if not getattr(options, 'auto_push', False):
+                        msg += "You may want to push "
+                        "(default is %s)" % desc.remote_url_push
+                    logger.warn(msg, desc.local_path_rel, desc.getName())
                     return 0
                 except RepoReleaseError:
                         return 1
@@ -754,7 +769,8 @@ class Bundle(object):
                 continue
             try:
                 new_tags[desc.target] = desc.release(
-                    multiple_heads=options.multiple_heads)
+                    multiple_heads=options.multiple_heads,
+                    increment_major=options.increment_major)
             except RepoReleaseError:
                 return 1
 
@@ -814,7 +830,7 @@ if __name__ == '__main__':
                 'update-clones': 'update_clones',
                 'clones-refresh-url': 'clones_refresh_url',
                 'release-clone': 'release_clone',
-                'release-bundle': 'release'}
+                'release-bundle': 'release',}
     usage = "usage: %prog [options] " + '|'.join(commands.keys())
     usage += """ [command args] \n
 
@@ -839,6 +855,10 @@ if __name__ == '__main__':
                       dest='release_again',
                       action="store_true",
                       help="Allow releasing again clones")
+    parser.add_option('--increment-major',
+                      action='store_true',
+                      help="Increment major version numbers in case of "
+                      "changes that aren't bugfixes only")
     parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
                       help="Sets the logging level to DEBUG")
 
