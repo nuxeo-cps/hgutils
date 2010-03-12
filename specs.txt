@@ -140,24 +140,6 @@ bundle from a public one
 
 Question: find a better name ?
 
-hgbundler refresh-urls-from-clones Prio: 3
-------------------------------------------
-
-Update servers and paths of the bundle from the clone default paths. This is the
-converse of ``clones-refresh-url``
-
-Use case: make one of the clones point to a private server
-(for a local branch, for instance). Then update the bundle to take
-that into account.
-
-Problem: this method will probably need to create new server objects,
-but it won't have just one possibility for that (cutting a path is not
-unique). OTOH, one can assume that just a few repos have been
-relocated in the typical use-case, i.e. it's simpler for the user to
-edit the BUNDLE_MANIFEST and copy/paste from hgrc, than for us to implement a
-complicated and unsatisfactory logic.
-
-
 hgbundler release [tag] Prio: 4
 -------------------------------
 
