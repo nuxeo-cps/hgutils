@@ -1,6 +1,6 @@
-===============================
-Specification for the hgbundler
-===============================
+===========================
+Specification for hgbundler
+===========================
 
 Purpose
 =======
@@ -24,7 +24,7 @@ the following example::
   <?xml version="1.0"?>
   <bundle name="CPS-example">
     <server name="racinet"
-            url="ssh://mercurial.racinet.org//home/mercurial/CPS">
+            url="http://mercurial.racinet.org/CPS">
       <tag name="CPS-3.4.0" path="products/CPSSchemas"/>
       <branch path="products/CPSDefault"/> <!-- default branch, aka trunk -->
       <branch name="unicode" path="products/CPSDocument"/>
@@ -34,7 +34,7 @@ the following example::
 This declares three components, available as repositories at the given server
 url. For instance, the repository for the first would be::
 
-  ssh://mercurial.racinet.org//home/mercurial/CPS/products/CPSSchemas
+  http://mercurial.racinet.org/CPS/products/CPSSchemas
 
 As you can see, there are two types of components: tags and
 branches. The trunk being in Mercurial the default branch, there's no
@@ -79,7 +79,7 @@ To avoid repeating over and over a big list of references, you may
 specify bundles to include. Example for the CPS-3-full bundle::
 
    <include-bundles
-       server-url="ssh://mercurial.racinet.org//home/mercurial/CPS">
+       server-url="http://mercurial.racinet.org/CPS">
      <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
    </include-bundles>
 
@@ -104,8 +104,8 @@ Planned options::
 OPERATIONS
 ==========
 
-hgmap <hg command> <arguments> Prio: 1
---------------------------------------
+hgmap <hg command> <arguments>
+------------------------------
 
 This is the simplest: map the given hg command over all hg clones
 present in the directory. Completely unaware of the bundle definition.
@@ -114,23 +114,23 @@ This avoids making useless hgbundler commands for ``push``, ``pull``, ``update``
 
 Also, this way, destructive operations like push/pull are explicit.
 
-hgbundler make-clones (implemented)
------------------------------------
+hgbundler make-clones
+---------------------
 
 This uses the server urls and the paths to clone all the involved
 repositories in the bundle directory.
 Automatically followed by ``update-clones``
 
-hgbundler update-clones (implemented)
--------------------------------------
+hgbundler update-clones
+-----------------------
 
 Each clone is updated on the tag or branch specified in the
 manifest.
 
 Question: should this command also create missing clones ?
 
-hgbundler clones-refresh-url (implemented)
-------------------------------------------
+hgbundler clones-refresh-url
+----------------------------
 
 This refreshes clones default paths (specified
 in ``.hg/hgrc`` files ) to base them on the bundle server urls.
@@ -140,15 +140,17 @@ bundle from a public one
 
 Question: find a better name ?
 
-hgbundler release [tag] Prio: 4
--------------------------------
+hgbundler release [tag]
+-----------------------
+*This is still experimental*
 
-For a bundle that happens to be also its own mercurial repository.
+For a bundle that happens to be also its own mercurial repository or
+inside one:
 
- - branch the bundle (name of the branch?)
- - make a release of each of the <branch> clones (assume we have the equivalent
-   of ``bm-product`` for that purpose ; in the meanwhile, just make a tag)
- - modify the bundle in the created branch to point to the new tags, commit
+ - call release-clone for each of the <branch> clones
+ - branch the bundle
+ - modify the bundle manifest in the created branch to point to the
+ new tags, commit
  - tag the bundle
  - get back to default branch of the bundle
 
@@ -157,16 +159,38 @@ Pushing the bundle to a reference repo is to be made manually afterwards.
 
 Question: commands semantics in the case where there are several
 bundles in a single repo (case for CPS-3-full, CPS-3-base, etc). Two
-cases :
+cases:
   - release each bundle
   - release just one
+For now, the command releases just one, meaning that we have a problem
+with tag unicity. This problem can be postponed. In the meanwhile, use
+different tags to release each bundle, and for the final coordinated
+release, make a new branch, merge all the release branches in that one
+and set a global tag manually. Alternative solution : implement a
+no-bundle tag.
+
+hgbundler release-clone [clone name]
+------------------------------------
+*This is still experimental*
+
+Uses the same rules as ``bm-product`` to issue a tag for the given
+clone. Does a few checkings to avoid accidents:
+
+ - the branch must have only one head (there's an option to force though).
+ - the current branch must be the one specified in the bundle manifest.
+ - no uncommited local changes.
+ - empty CHANGES is acceptable only if the diff with previous tag is
+ empty or the user requested a re-release (increment of release nr,
+ not version number, typically because the release itself was faulty
+ for some reason)
+
+Do hgbundler.py --help for the list of options
 
 hgbundler archive [tag] Prio: 4
 -------------------------------
 
 Produce a tgz archive for the given tag (recursively calls archive on
 each clone for the corresponding tag)
-
 
 hgbundler make-bundle (Prio: 5)
 -------------------------------
