@@ -56,7 +56,22 @@ LOCAL_CHANGES = 'local changes'
 MULTIPLE_HEADS = 'multiple heads'
 WRONG_BRANCH = 'wrong branch'
 
+def _findrepo(p):
+    """Find with of path p is an hg repo.
+
+    Copy-pasted from mercurial.dispatch (GPLv2), since the underscore clearly
+    marks this as purely internal and subject to change"""
+
+    while not os.path.isdir(os.path.join(p, ".hg")):
+        oldp, p = p, os.path.dirname(p)
+        if p == oldp:
+            return None
+    return p
+
 class RepoReleaseError(Exception):
+    pass
+
+class RepoNotFoundError(Exception):
     pass
 
 class Server(object):
@@ -582,8 +597,13 @@ class Bundle(object):
     def getBundleRepo(self):
         """Return mercurial repo object for the bundle itself
         Raise an error if repo can't be found"""
+
         if self.bundle_repo is None:
-            self.bundle_repo = hg.repository(HG_UI, self.bundle_dir)
+            repo_path = _findrepo(self.bundle_dir)
+            if repo_path is None:
+                raise RepoNotFoundError()
+            logger.info("Found mercurial repository at %s", repo_path)
+            self.bundle_repo = hg.repository(HG_UI, repo_path)
         return self.bundle_repo
 
     def makeRepo(self, server, r, new=True):
@@ -698,7 +718,13 @@ class Bundle(object):
 
     def release(self, release_name, options=None):
         """Release the whole bundle."""
-        bundle_repo = self.getBundleRepo()
+        try:
+            bundle_repo = self.getBundleRepo()
+        except RepoNotFoundError:
+            logger.critical("The current bundle is not part of a mercurial."
+                            "Repository. Releasing makes not sense.")
+            return 1
+
         if release_name in bundle_repo.branchtags():
             logger.critical("There is already a release '%s' for this bundle",
                             release_name)
