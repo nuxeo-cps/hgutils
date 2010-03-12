@@ -117,7 +117,7 @@ class RepoDescriptor(object):
 
         # TODO keep only xml attrs that are not redundant with this object
         # attributes to avoid confusion
-        self.xml_attrs = attrs.copy()
+        self.xml_attrs = dict(attrs)
         subpath = attrs.get('subpath')
         if subpath is None:
             self.is_sub = False
