@@ -179,10 +179,14 @@ clone. Does a few checkings to avoid accidents:
  - the branch must have only one head (there's an option to force though).
  - the current branch must be the one specified in the bundle manifest.
  - no uncommited local changes.
+ - latest tag (read from VERSION) is recognized as made by hgbundler.
  - empty CHANGES is acceptable only if the diff with previous tag is
  empty or the user requested a re-release (increment of release nr,
  not version number, typically because the release itself was faulty
- for some reason)
+ for some reason).
+
+In the latest two cases, hgbundler will show the relevant ``hg log``
+output if the checking fails.
 
 Do hgbundler.py --help for the list of options
 

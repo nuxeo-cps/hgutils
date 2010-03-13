@@ -380,17 +380,25 @@ First release built by: %s at: %s
         self.version_str = ret[1]
         self.release_nr = ret[2] and int(ret[2]) or None
 
-    def changedSinceTag(self, node):
+    def changedSinceTag(self, node, tag_name=None):
         tag_ctx = self.repo[node]
         children = tag_ctx.children()
+        base_error_msg = ("Previous tag %s (from VERSION) " +
+                         "not done by hgbundler. ")
         if len(children) != 1:
-            logger.error("Tag should have exactly one child (tag commit)")
+            logger.error(base_error_msg + "The tagged changeset would "
+                         "otherwise have exactly."
+                         "one child (commit of tag).", tag_name)
+            self.dumpLogSince(tag_ctx.node())
             raise RepoReleaseError
         children = children[0].children()
         if len(children) != 1:
-            logger.error("Tag commit should have exactly one child "
-                         "(CHANGES init)")
+            logger.error(base_error_msg + "The tag commit "
+                         "would otherwise have exactly one child (reinit of "
+                         "CHANGES). ")
+            self.dumpLogSince(tag_ctx.node())
             raise RepoReleaseError
+
         node1 = children[0].node()
         logger.debug("Checking diff since changeset %s", hg_hex(node1))
         it = mercurial.patch.diff(self.repo, node1=node1)
@@ -398,7 +406,24 @@ First release built by: %s at: %s
             it.next()
         except StopIteration:
             return False
+        logger.warn("Diff since last release (node %s) not empty.",
+                    hg_hex(node))
+        self.dumpLogSince(node1)
         return True
+
+    def dumpLogSince(self, node):
+        current_ctx = self.repo[None]
+        current_node = current_ctx.node()
+        if current_node is None:
+            current_node = current_ctx.parents()[0].node()
+
+        noderange = hg_hex(node), hg_hex(current_node)
+        logger.info("Running hg log since %s on branch '%s'.",
+                    hg_hex(node), self.branch)
+        hg_commands.log(self.repo.ui, self.repo,
+                        rev=[':'.join(noderange)],
+                        only_branch=[self.branch],
+                        date=None, user=None)
 
     def newVersion(self):
         """Computes the new version of the product.
@@ -423,7 +448,7 @@ First release built by: %s at: %s
                     # not a versioned product
                     return None
 
-            if self.changedSinceTag(tag_node):
+            if self.changedSinceTag(tag_node, tag_name=self.version_str):
                 if not self.release_again:
                     logger.error("Changes since tag %s for %s (branch '%s') "
                                  "but empty CHANGES file",
