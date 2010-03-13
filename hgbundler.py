@@ -238,12 +238,16 @@ class Tag(RepoDescriptor):
         logger.warn("No need to perform release on tag %s for target %s",
                     self.name, self.target)
 
-    def head(self):
-        """Return name and node for the tag."""
+    def getName(self):
+        return self.name
+
+    def tip(self):
+        """Cheating with terminology: in that case that's just the tag node."""
         tags = self.getRepo().tags()
         name = self.name
+
         try:
-            return name, tags[name]
+            return tags[name]
         except KeyError:
             raise ValueError("Tag '%s' not found in repo %s", name,
                              self.local_path_rel)
