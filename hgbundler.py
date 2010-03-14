@@ -413,7 +413,7 @@ First release built by: %s at: %s
         if len(children) != 1:
             logger.error(base_error_msg + "The tag commit "
                          "would otherwise have exactly one child (reinit of "
-                         "CHANGES). ")
+                         "CHANGES). ", tag_name)
             self.dumpLogSince(tag_ctx.node())
             raise RepoReleaseError
 
