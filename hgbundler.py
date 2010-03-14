@@ -73,6 +73,7 @@ def hg_up(path, name):
 LOCAL_CHANGES = 'local changes'
 MULTIPLE_HEADS = 'multiple heads'
 WRONG_BRANCH = 'wrong branch'
+SEVERAL_PARENTS = 'several parents'
 
 def _findrepo(p):
     """Find with of path p is an hg repo.
@@ -90,6 +91,9 @@ class RepoReleaseError(Exception):
     pass
 
 class RepoNotFoundError(Exception):
+    pass
+
+class NodeNotFoundError(Exception):
     pass
 
 class Server(object):
@@ -646,21 +650,43 @@ class Bundle(object):
         self.descriptors = None
         self.known_targets = set()
         self.bundle_repo = None
+        self.initial_node = None
 
     def getManifestPath(self):
         return os.path.join(self.bundle_dir, MANIFEST_FILE)
 
-    def getBundleRepo(self):
-        """Return mercurial repo object for the bundle itself
-        Raise an error if repo can't be found"""
+    def initBundleRepo(self):
+        """Store repo and initial node info for the bundle itself if needed.
+        Raise an error if repo or initial node can't be found.
+        """
 
         if self.bundle_repo is None:
             repo_path = _findrepo(self.bundle_dir)
             if repo_path is None:
                 raise RepoNotFoundError()
             logger.info("Found mercurial repository at %s", repo_path)
-            self.bundle_repo = hg.repository(HG_UI, repo_path)
-        return self.bundle_repo
+            repo = self.bundle_repo = hg.repository(HG_UI, repo_path)
+
+        if self.initial_node is None:
+            ctx = repo[None]
+            current_node = ctx.node()
+            if current_node is None:
+                parents = ctx.parents()
+                if len(parents) != 1:
+                   raise NodeNotFoundError(SEVERAL_PARENTS)
+                ctx = parents[0]
+            current_node = ctx.node()
+            current_rev = ctx.rev()
+            logger.debug("Currently at rev %s (%s)", parents[0].rev(),
+                         hg_hex(current_node))
+            self.initial_node = current_node
+            self.initial_rev = current_rev
+
+    def updateToInitialNode(self):
+        self.initBundleRepo()
+        logger.info("Getting back to rev %s (%s)", self.initial_rev,
+                     hg_hex(self.initial_node))
+        hg.update(self.bundle_repo, self.initial_node)
 
     def makeRepo(self, server, r, new=True):
         """Make a repo descriptor from server instance and xml element.
@@ -778,14 +804,40 @@ class Bundle(object):
         logger.fatal("No clone with target '%s'" % target)
         return 1
 
+    def writeManifest(self):
+        """Dumps the XML tree in the manifest file."""
+
+        # We go through tidy since pretty_print not present in all lxml
+        # versions)
+        # TODO this is a rough way of doing, even with the pipe
+
+        tidy_out, tidy_in, tidy_err = popen2.popen3(
+            'tidy --wrap 79 --indent-attributes yes '
+            '--indent yes --indent-spaces 2 -asxml -xml ')
+        self.tree.write(tidy_in)
+        tidy_in.close()
+        formatted = tidy_out.read()
+        tidy_out.close()
+
+        f = open(self.getManifestPath(), 'w')
+        f.write(formatted)
+        f.close()
+
     def release(self, release_name, options=None):
         """Release the whole bundle."""
         try:
-            bundle_repo = self.getBundleRepo()
+            self.initBundleRepo()
         except RepoNotFoundError:
             logger.critical("The current bundle is not part of a mercurial."
                             "Repository. Releasing makes not sense.")
             return 1
+        except NodeNotFoundError, e:
+            if str(e) == SEVERAL_PARENTS:
+                logger.critical("Current bundle state has several parents. "
+                                "uncommited merge?")
+                return 1
+
+        bundle_repo = self.bundle_repo
 
         if release_name in bundle_repo.branchtags():
             logger.critical("There is already a release '%s' for this bundle",
@@ -793,21 +845,6 @@ class Bundle(object):
             return 1
 
         new_tags = {}
-
-        ctx = bundle_repo[None]
-        current_node = ctx.node()
-        if current_node is None:
-            parents = ctx.parents()
-            if len(parents) != 1:
-                logger.critical("Current bundle state has several parents. "
-                                "Uncommited merge ? Aborting.")
-                return 1
-            ctx = parents[0]
-        current_node = ctx.node()
-        current_rev = ctx.rev()
-        logger.debug("Currently at rev %s (%s)", parents[0].rev(),
-                     hg_hex(current_node))
-
         # Release of all repos
         for desc in self.getRepoDescriptors():
             if isinstance(desc, Tag):
@@ -820,9 +857,6 @@ class Bundle(object):
                     increment_major=options.increment_major)
             except RepoReleaseError:
                 return 1
-
-        # create branch
-        hg_commands.branch(bundle_repo.ui, bundle_repo, release_name)
 
         # update xml tree
         for s in self.root.getchildren():
@@ -843,34 +877,14 @@ class Bundle(object):
                 t = new_tag.xml()
                 s.insert(i, t)
 
-        # write new manifest (through tidy since pretty_print not always there)
-        # TODO rough way of doing, even with the pipe
-
-        tidy_out, tidy_in, tidy_err = popen2.popen3(
-            'tidy --wrap 79 --indent-attributes yes '
-            '--indent yes --indent-spaces 2 -asxml -xml ')
-        self.tree.write(tidy_in)
-        tidy_in.close()
-        formatted = tidy_out.read()
-        tidy_out.close()
-
-        f = open(self.getManifestPath(), 'w')
-        f.write(formatted)
-        f.close()
-
-        # commit
+        # create branch, update manifest, commit, tag and get back
+        hg_commands.branch(bundle_repo.ui, bundle_repo, release_name)
+        self.writeManifest()
         bundle_repo.commit(text="hgbundler update manifest for release")
-
-        # tag
         hg_commands.tag(bundle_repo.ui, bundle_repo, release_name,
                         message="hgbundler setting tag")
-
         #TODO mark branch as inactive ?
-        # Getting back to current node
-        logger.info("Getting back to rev %s (%s)", current_rev,
-                     hg_hex(current_node))
-        hg.update(bundle_repo, current_node)
-
+        self.updateToInitialNode()
 
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',
