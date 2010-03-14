@@ -190,6 +190,25 @@ output if the checking fails.
 
 Do hgbundler.py --help for the list of options
 
+What the release process does is three changesets:
+
+ 1. dump the contents of CHANGES into HISTORY, update VERSION with the
+    new number, computed according to the contents of CHANGES and options
+ 2. Tag the previous changeset with the new version number
+ 3. Reinitialize CHANGES
+
+In case the release is done from another branch than "default", the
+branch name gets appended to the version number. Example: 3.39.1-unicode
+
+Upon next release, the command expects to find these changesets in
+order to check the diff from the latest tag (actually from changeset 3
+above) in case CHANGES is empty.
+
+Special note for first runs: hgbundler won't understand tags made by
+``bm-product`` and converted from Subversion to Mercurial. In case
+no changes have been made since such a tag, the user can simply put a
+line in CHANGES stating for instance that this is for the first hgbundler run.
+
 hgbundler archive [tag] Prio: 4
 -------------------------------
 
