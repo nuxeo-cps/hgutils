@@ -140,7 +140,7 @@ bundle from a public one
 
 Question: find a better name ?
 
-hgbundler release [tag]
+hgbundler release <tag>
 -----------------------
 *This is still experimental*
 
@@ -169,7 +169,7 @@ release, make a new branch, merge all the release branches in that one
 and set a global tag manually. Alternative solution : implement a
 no-bundle tag.
 
-hgbundler release-clone [clone name]
+hgbundler release-clone <clone name>
 ------------------------------------
 *This is still experimental*
 
@@ -216,11 +216,19 @@ Special note for first runs: hgbundler won't understand tags made by
 no changes have been made since such a tag, the user can simply put a
 line in CHANGES stating for instance that this is for the first hgbundler run.
 
-hgbundler archive [tag] Prio: 4
--------------------------------
+hgbundler archive <tag> <output_dir>
+------------------------------------
 
-Produce a tgz archive for the given tag (recursively calls archive on
-each clone for the corresponding tag)
+Prepare an archive for the given bundle tag by calling ``hg archive``
+on all repos. This archive is a directory, ready to be tarballed or
+zipped.
+
+TODO: provide true archives in .tgz and .zip formats.
+
+Note: subrepos are correctly extracted and put at their right place
+through this process. The ``.hg_archival.txt`` file is moved from the
+full repo extraction to the subrepo. The directory holding clones for
+subrepos is removed from the archive at the end of the process.
 
 hgbundler make-bundle (Prio: 5)
 -------------------------------

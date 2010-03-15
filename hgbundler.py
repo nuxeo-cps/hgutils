@@ -177,6 +177,38 @@ class RepoDescriptor(object):
         """Find the path to repo if it's aside (subpath situation)"""
         return os.path.join(ASIDE_REPOS, self.clone_target)
 
+    def subSrcDest(self, base_path=None):
+        """Return origin, destination path in the bundle and clone path
+
+        Meaningful for sub repos only (if self.is_sub).
+
+        destination and clone paths are absolute.
+        if base_path is not specified, origin is relative to dest (suitable
+        for a relocatable symlink). Same for clone path. Otherwise it'll be
+        absolute.
+        """
+
+        clone_from_bdl = os.path.join(ASIDE_REPOS, self.clone_target)
+        dest_from_bdl = os.path.join(clone_from_bdl, self.subpath)
+
+        if base_path is not None:
+            src = os.path.join(base_path, dest_from_bdl)
+        else:
+            base_path = self.bundle_dir
+            deepness = len(self.target.split(os.path.sep)) - 1
+
+            if deepness:
+                local_to_base = os.path.join(*((os.path.pardir,)*deepness))
+            else:
+                local_to_base = ''
+
+            src = os.path.join(local_to_base, dest_from_bdl)
+
+        dest = os.path.join(base_path, self.target)
+        clone = os.path.join(base_path, clone_from_bdl)
+
+        return src, dest, clone
+
     def make_clone(self):
         """Make the clone if needed and return True if done."""
 
@@ -196,15 +228,7 @@ class RepoDescriptor(object):
 
         if self.is_sub:
             logger.info("Extracting to %s", self.target)
-            deepness = len(self.target.split(os.path.sep)) - 1
-
-            if deepness:
-                local_to_base = os.path.join(*((os.path.pardir,)*deepness))
-            else:
-                local_to_base = ''
-
-            src = os.path.join(local_to_base, ASIDE_REPOS,
-                                    self.clone_target, self.subpath)
+            src, target_path, _ = self.subSrcDest()
             logger.debug("Making symlink %s -> %s", target_path, src)
             os.symlink(src, target_path)
 
@@ -215,6 +239,25 @@ class RepoDescriptor(object):
 
         Release means update to VERSION, CHANGES, etc + mercurial tag etc."""
         raise NotImplementedError
+
+    def archive(self, output_dir):
+        repo = self.getRepo()
+        dest = os.path.join(output_dir, self.local_path_rel)
+        logger.info("Extracting %s (%s) to %s",
+                    self.local_path_rel, self.getName(), dest)
+        archival.archive(repo, dest, self.tip(),
+                         'files', True, hg_cmdutil.match(repo, []))
+        if self.is_sub:
+            src, dest, clone = self.subSrcDest(base_path=output_dir)
+
+            # TODO platform independency
+            cmd = 'cp -rp %s %s' % (src, dest)
+            logger.info('Subpath extraction: ' + cmd)
+            os.system(cmd)
+
+            cmd = 'cp %s %s' % (os.path.join(clone, '.hg_archival.txt'), dest)
+            logger.debug('hg archival file extraction: ' + cmd)
+            os.system(cmd)
 
     def getRepo(self):
         """Return mercurial repo object.
@@ -938,17 +981,19 @@ class Bundle(object):
         logger.info("Creation of output directory %s", output_dir)
         os.mkdir(output_dir)
 
+        has_sub = False
         for desc in self.getRepoDescriptors():
-            repo = desc.getRepo()
-            dest = os.path.join(output_dir, desc.local_path_rel)
-            logger.info("Extracting %s (%s) from bundle tag %s to %s",
-                        desc.local_path_rel, desc.getName(), tag_name, dest)
-            # TODO take indirections (symlinks for subpath) into account !!
-            # Must find the sub paths in the .hgbundler repo, copy them
-            # and add hg_archival.txt in them
-            # This should be taken care of by a method of desc object
-            archival.archive(repo, dest, desc.tip(),
-                             'files', True, hg_cmdutil.match(repo, []))
+            has_sub = has_sub or desc.is_sub
+            desc.archive(output_dir)
+
+        if has_sub:
+            aside = os.path.join(output_dir, ASIDE_REPOS)
+            logger.info("Removal of extracted temp directory for sub-repos %s",
+                        aside)
+
+            # TODO platform independency
+            cmd = "rm -r %s" % aside
+            os.system(cmd)
 
         self.updateToInitialNode()
 
