@@ -176,10 +176,17 @@ hgbundler release-clone [clone name]
 Uses the same rules as ``bm-product`` to issue a tag for the given
 clone. Does a few checkings to avoid accidents:
 
- - the branch must have only one head (there's an option to force though).
- - the current branch must be the one specified in the bundle manifest.
+ - the branch must have only one head (there's an option to force
+   though).
+ - there repo must be updated to a head a head: accidental
+   releasing of a whole bundle from the previous tagged nodes can be a
+   pain to fix. If you need to release from an intermediate state,
+   make a branch first.
+ - the current branch must be the one specified in the bundle
+   manifest. TODO option to overcome that if releasing a single clone.
  - no uncommited local changes.
- - latest tag (read from VERSION) is recognized as made by hgbundler.
+ - if CHANGES is empty, latest tag (read from VERSION) is recognized as made by
+   hgbundler. If that's not the case, simply commit something in CHANGES.
  - empty CHANGES is acceptable only if the diff with previous tag is
  empty or the user requested a re-release (increment of release nr,
  not version number, typically because the release itself was faulty
@@ -190,7 +197,7 @@ output if the checking fails.
 
 Do hgbundler.py --help for the list of options
 
-What the release process does is three changesets:
+What the release process does is to issue three changesets:
 
  1. dump the contents of CHANGES into HISTORY, update VERSION with the
     new number, computed according to the contents of CHANGES and options

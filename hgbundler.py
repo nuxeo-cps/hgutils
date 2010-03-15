@@ -74,8 +74,21 @@ def hg_up(path, name):
 
 LOCAL_CHANGES = 'local changes'
 MULTIPLE_HEADS = 'multiple heads'
+NOT_HEAD = 'not a head'
 WRONG_BRANCH = 'wrong branch'
 SEVERAL_PARENTS = 'several parents'
+
+class RepoReleaseError(Exception):
+    pass
+
+
+class RepoNotFoundError(Exception):
+    pass
+
+
+class NodeNotFoundError(Exception):
+    pass
+
 
 def _findrepo(p):
     """Find with of path p is an hg repo.
@@ -89,14 +102,18 @@ def _findrepo(p):
             return None
     return p
 
-class RepoReleaseError(Exception):
-    pass
+def _currentNodeRev(repo):
+    """Return current node and rev for repo."""
+    ctx = repo[None]
+    node = ctx.node()
+    if node is None:
+        parents = ctx.parents()
+        if len(parents) != 1:
+           raise NodeNotFoundError(SEVERAL_PARENTS)
+        ctx = parents[0]
+        node = ctx.node()
+    return node, ctx.rev()
 
-class RepoNotFoundError(Exception):
-    pass
-
-class NodeNotFoundError(Exception):
-    pass
 
 class Server(object):
 
@@ -577,10 +594,11 @@ class Branch(RepoDescriptor):
         if not 'CHANGES' in l:
             return False
 
-        return True # NOCOMMIT
+        return True 
 
     def checkHeads(self, allow_multiple=False):
         heads = self.heads()
+        name = self.getName()
         if not heads:
             # Can happen after a rollback
             logger.error("No head in branch %s of %s. Aborting.",
@@ -588,15 +606,21 @@ class Branch(RepoDescriptor):
             raise RepoReleaseError()
 
         if len(heads) > 1:
-            name = self.getName()
             if allow_multiple:
-                logger.info("Several heads for branch %s of %s. Allowed, "
+                logger.warn("Several heads for branch %s of %s. Allowed, "
                             "but you should check and fix that",
                             name, self.local_path_rel)
             else:
                 logger.error("Several heads for branch %s of %s. Aborting.",
                              name, self.local_path_rel)
                 raise RepoReleaseError(MULTIPLE_HEADS)
+
+        node, _ = _currentNodeRev(self.repo)
+        if node not in heads:
+            logger.error("Current node %s on branch %s of %s "
+                         "not a head. Aborting.",
+                         hg_hex(node), name, self.local_path_rel)
+            raise RepoReleaseError(NOT_HEAD)
 
     def release(self, multiple_heads=False, release_again=False,
                 increment_major=False):
@@ -608,19 +632,6 @@ class Branch(RepoDescriptor):
         name = self.getName()
         self.checkLocalRepo()
         self.checkHeads(allow_multiple=multiple_heads)
-        # TODO: if current node is some intermediate one
-        # (notably the previous tag), CHANGES can be non empty, and therefore
-        # trigger an unwanted release
-        # Solutions: 1) forbid the current node to be a tag
-        # 2) simply update before hand. Rationale: if the user really
-        # wants to release from an intermediate state, this will create a
-        # second head of the named branch, hence poisoning future releases.
-        # Renaming as a new branch afterwards wouldn't even cure it,
-        # the user would have to merge.... ugly
-        # So the user's only choice in that use-case is to create a new branch
-        # beforehand and then release it.
-        # 1) is useful even in the context of 2), to avoid releasing a
-        # whole tag bundle (should be protected in Bundler.release)
         releaser = Releaser(self, release_again=release_again,
                             increment_major=increment_major)
 
@@ -683,19 +694,10 @@ class Bundle(object):
             repo = self.bundle_repo = hg.repository(HG_UI, repo_path)
 
         if self.initial_node is None:
-            ctx = repo[None]
-            current_node = ctx.node()
-            if current_node is None:
-                parents = ctx.parents()
-                if len(parents) != 1:
-                   raise NodeNotFoundError(SEVERAL_PARENTS)
-                ctx = parents[0]
-            current_node = ctx.node()
-            current_rev = ctx.rev()
-            logger.debug("Currently at rev %s (%s)", parents[0].rev(),
-                         hg_hex(current_node))
-            self.initial_node = current_node
-            self.initial_rev = current_rev
+            node, rev = _currentNodeRev(repo)
+            logger.debug("Currently at rev %s (%s)", rev, node)
+            self.initial_node = node
+            self.initial_rev = rev
 
     def updateToInitialNode(self):
         self.initBundleRepo()
