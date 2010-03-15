@@ -46,8 +46,10 @@ except ImportError:
         sys.exit(1)
 
 from mercurial import hg
+from mercurial import archival
 from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
+from mercurial import cmdutil as hg_cmdutil
 import mercurial.patch
 import mercurial.ui
 HG_UI = mercurial.ui.ui()
@@ -606,9 +608,19 @@ class Branch(RepoDescriptor):
         name = self.getName()
         self.checkLocalRepo()
         self.checkHeads(allow_multiple=multiple_heads)
-        logger.info("Performing release of branch %s for %s",
-                    name, self.local_path_rel)
-
+        # TODO: if current node is some intermediate one
+        # (notably the previous tag), CHANGES can be non empty, and therefore
+        # trigger an unwanted release
+        # Solutions: 1) forbid the current node to be a tag
+        # 2) simply update before hand. Rationale: if the user really
+        # wants to release from an intermediate state, this will create a
+        # second head of the named branch, hence poisoning future releases.
+        # Renaming as a new branch afterwards wouldn't even cure it,
+        # the user would have to merge.... ugly
+        # So the user's only choice in that use-case is to create a new branch
+        # beforehand and then release it.
+        # 1) is useful even in the context of 2), to avoid releasing a
+        # whole tag bundle (should be protected in Bundler.release)
         releaser = Releaser(self, release_again=release_again,
                             increment_major=increment_major)
 
@@ -616,6 +628,8 @@ class Branch(RepoDescriptor):
         if to_tag is None:
             return
         elif to_tag:
+            logger.info("Performing release of branch %s for %s",
+                        name, self.local_path_rel)
             releaser.updateVersionFiles()
             self.getRepo().commit(
                 text="hgbundler prepared version files for release")
@@ -645,8 +659,9 @@ class Bundle(object):
         if MANIFEST_FILE not in os.listdir(bundle_dir):
             raise RuntimeError(
                 "Not a bundle directory : %s (no MANIFEST_FILE)" % bundle_dir)
-        self.tree = etree.parse(self.getManifestPath())
-        self.root = self.tree.getroot()
+
+        self.tree = None
+        self.root = None
         self.descriptors = None
         self.known_targets = set()
         self.bundle_repo = None
@@ -687,6 +702,15 @@ class Bundle(object):
         logger.info("Getting back to rev %s (%s)", self.initial_rev,
                      hg_hex(self.initial_node))
         hg.update(self.bundle_repo, self.initial_node)
+
+    def updateToTag(self, tag_name):
+        try:
+            node = self.bundle_repo.tags()[tag_name]
+        except KeyError:
+            raise NodeNotFoundError(tag_name)
+        logger.info("Updating bundle to tag %s (node %s)",
+                    tag_name, hg_hex(node))
+        hg.update(self.bundle_repo, node)
 
     def makeRepo(self, server, r, new=True):
         """Make a repo descriptor from server instance and xml element.
@@ -746,6 +770,9 @@ class Bundle(object):
     def getRepoDescriptors(self):
         if self.descriptors is not None:
             return self.descriptors
+
+        self.tree = etree.parse(self.getManifestPath())
+        self.root = self.tree.getroot()
 
         res = []
 
@@ -886,20 +913,60 @@ class Bundle(object):
         #TODO mark branch as inactive ?
         self.updateToInitialNode()
 
+    def archive(self, tag_name, output_dir, options=None):
+        """Produces an archive."""
+        try:
+            self.initBundleRepo()
+        except RepoNotFoundError:
+            logger.critical("The current bundle is not part of a mercurial."
+                            "Repository. No tags, no archives.")
+            return 1
+        except NodeNotFoundError, e:
+            if str(e) == SEVERAL_PARENTS:
+                logger.critical("Current bundle state has several parents. "
+                                "uncommited merge?")
+                return 1
+            raise
+        try:
+           self.updateToTag(tag_name)
+        except NodeNotFoundError:
+            logger.critical("Release (bundle tag) %s not found", tag_name)
+            return 1
+
+        logger.info("Creation of output directory %s", output_dir)
+        os.mkdir(output_dir)
+
+        for desc in self.getRepoDescriptors():
+            repo = desc.getRepo()
+            dest = os.path.join(output_dir, desc.local_path_rel)
+            logger.info("Extracting %s (%s) from bundle tag %s to %s",
+                        desc.local_path_rel, desc.getName(), tag_name, dest)
+            # TODO take indirections (symlinks for subpath) into account !!
+            # Must find the sub paths in the .hgbundler repo, copy them
+            # and add hg_archival.txt in them
+            # This should be taken care of by a method of desc object
+            archival.archive(repo, dest, desc.tip(),
+                             'files', True, hg_cmdutil.match(repo, []))
+
+        self.updateToInitialNode()
+
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',
                 'update-clones': 'update_clones',
                 'clones-refresh-url': 'clones_refresh_url',
                 'release-clone': 'release_clone',
-                'release-bundle': 'release',}
+                'release-bundle': 'release',
+                'archive': 'archive'}
     usage = "usage: %prog [options] " + '|'.join(commands.keys())
     usage += """ [command args] \n
 
     command arguments:
 
-    command             arguments        comments
-    ----------------------------------------------
-    release-bundle      <release name>   mandatory
+    command             arguments                comments
+    -----------------------------------------------------
+    release-clone       <clone relative path>     mandatory
+    release-bundle      <release name>            mandatory
+    archive             <bundle tag> <output dir> mandatory
 """
     parser = OptionParser(usage=usage)
 
