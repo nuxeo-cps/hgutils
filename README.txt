@@ -236,6 +236,13 @@ hgbundler make-bundle (Prio: 5)
 Create the manifest file in the current directory from the clones that
 can be found there (choices tags/branches ?)
 
+hgbundler bundleman-convert (Prio: 5)
+-------------------------------------
+
+Convert a bundleman svn bundle into a hgbundler one. Must probably
+ship with a CPS-specific correspondence and accept not to convert a
+few externals, leaving them to the user
+
 EXAMPLE
 =======
 
