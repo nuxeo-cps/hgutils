@@ -57,6 +57,7 @@ HG_UI = mercurial.ui.ui()
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 ASIDE_REPOS = '.hgbundler'
 INCLUDES = '.hgbundler_incl'
+BUNDLE_RELEASE_BRANCH_PREFIX='hgbundler-release-'
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
@@ -911,7 +912,8 @@ class Bundle(object):
 
         bundle_repo = self.bundle_repo
 
-        if release_name in bundle_repo.branchtags():
+        branch_name = BUNDLE_RELEASE_BRANCH_PREFIX+release_name
+        if branch_name in bundle_repo.branchtags():
             logger.critical("There is already a release '%s' for this bundle",
                             release_name)
             return 1
@@ -950,7 +952,8 @@ class Bundle(object):
                 s.insert(i, t)
 
         # create branch, update manifest, commit, tag and get back
-        hg_commands.branch(bundle_repo.ui, bundle_repo, release_name)
+        hg_commands.branch(bundle_repo.ui, bundle_repo, branch_name)
+
         self.writeManifest()
         bundle_repo.commit(text="hgbundler update manifest for release")
         hg_commands.tag(bundle_repo.ui, bundle_repo, release_name,
