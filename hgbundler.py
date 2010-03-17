@@ -51,6 +51,7 @@ from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
 from mercurial import cmdutil as hg_cmdutil
 import mercurial.patch
+import mercurial.util
 import mercurial.ui
 HG_UI = mercurial.ui.ui()
 
@@ -58,6 +59,9 @@ MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 ASIDE_REPOS = '.hgbundler'
 INCLUDES = '.hgbundler_incl'
 BUNDLE_RELEASE_BRANCH_PREFIX='hgbundler-release-'
+
+HG_VERSION_STR = mercurial.util.version()
+HG_VERSION = tuple(int(x) for x in HG_VERSION_STR.split('.'))
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
@@ -951,14 +955,20 @@ class Bundle(object):
                 t = new_tag.xml()
                 s.insert(i, t)
 
-        # create branch, update manifest, commit, tag and get back
+        # create branch, update manifest, commit, tag, close branch and get back
         hg_commands.branch(bundle_repo.ui, bundle_repo, branch_name)
 
         self.writeManifest()
         bundle_repo.commit(text="hgbundler update manifest for release")
         hg_commands.tag(bundle_repo.ui, bundle_repo, release_name,
                         message="hgbundler setting tag")
-        #TODO mark branch as inactive ?
+        logger.debug("version tuple: %s", HG_VERSION)
+        if HG_VERSION < (1, 2):
+            logger.warn("Closing branch implemented in Mercurial > 1.2 "
+                        " (current is %s)", HG_VERSION_STR)
+        else:
+            bundle_repo.commit(text="closing release branch",
+                               extra=dict(close=1))
         self.updateToInitialNode()
 
     def archive(self, tag_name, output_dir, options=None):

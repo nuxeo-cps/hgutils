@@ -140,8 +140,8 @@ bundle from a public one
 
 Question: find a better name ?
 
-hgbundler release <tag>
------------------------
+hgbundler release-bundle <tag>
+------------------------------
 *This is still experimental*
 
 For a bundle that happens to be also its own mercurial repository or
@@ -152,6 +152,7 @@ inside one:
  - modify the bundle manifest in the created branch to point to the
  new tags, commit
  - tag the bundle
+ - close the release branch (TODO check repo compat with mercurial < 1.2)
  - get back to default branch of the bundle
 
 Pushing the bundle to a reference repo is to be made manually afterwards.
