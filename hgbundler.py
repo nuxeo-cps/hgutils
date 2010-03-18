@@ -218,18 +218,17 @@ class RepoDescriptor(object):
         """Make the clone if needed and return True if done."""
 
         if os.path.exists(self.local_path):
-            logger.debug("Ignoring the existing clone for %s", self.target)
-            return False
+            logger.debug("Ignoring the existing clone %s", self.local_path_rel)
+        else:
+            logger.info("Creating clone %s", self.local_path_rel)
+            make_clone(self.remote_url, self.local_path)
+            if self.remote_url_push:
+                self.updateUrls()
 
         target_path = os.path.join(self.bundle_dir, self.target)
         if os.path.exists(target_path):
             logger.debug("Ignoring the existing target path %s", self.target)
             return False
-
-        logger.info("Creating clone %s", self.local_path_rel)
-        make_clone(self.remote_url, self.local_path)
-        if self.remote_url_push:
-            self.updateUrls()
 
         if self.is_sub:
             logger.info("Extracting to %s", self.target)
