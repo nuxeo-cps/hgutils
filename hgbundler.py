@@ -60,8 +60,15 @@ ASIDE_REPOS = '.hgbundler'
 INCLUDES = '.hgbundler_incl'
 BUNDLE_RELEASE_BRANCH_PREFIX='hgbundler-release-'
 
-HG_VERSION_STR = mercurial.util.version()
-HG_VERSION = tuple(int(x) for x in HG_VERSION_STR.split('.'))
+try:
+    HG_VERSION_STR = mercurial.util.version()
+except AttributeError:
+    from mercurial.version import get_version
+    HG_VERSION_STR = get_version()
+
+split = HG_VERSION_STR.split('+', 1)
+HG_VERSION_COMPLEMENT = len(split) == 2 and split[1] or None
+HG_VERSION = tuple(int(x) for x in split[0].split('.'))
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
