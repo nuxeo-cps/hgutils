@@ -137,6 +137,8 @@ class Server(object):
 
     def __init__(self, attrib):
         self.name = attrib.get('name')
+        self.from_include = attrib.get('from-include',
+                                       '').strip().lower() == 'true'
         url = attrib.get('url')
         if url is None:
             url = attrib.get('server-url') # for include-bundles
@@ -160,13 +162,14 @@ class Server(object):
 class RepoDescriptor(object):
 
     def __init__(self, remote_url, bundle_dir, target, name, attrs,
-                 remote_url_push=None):
+                 from_include=False, remote_url_push=None):
         # name is an additional name to qualify used by subclasses
         self.remote_url = remote_url
         self.remote_url_push = remote_url_push
         self.target = target
         self.bundle_dir = bundle_dir
         self.name = name
+        self.from_include = from_include
 
         # TODO keep only xml attrs that are not redundant with this object
         # attributes to avoid confusion
@@ -728,7 +731,6 @@ class Bundle(object):
         self.tree = None
         self.root = None
         self.descriptors = None
-        self.known_targets = set()
         self.bundle_repo = None
         self.initial_node = None
 
@@ -768,7 +770,7 @@ class Bundle(object):
                     tag_name, hg_hex(node))
         hg.update(self.bundle_repo, node)
 
-    def makeRepo(self, server, r, new=True):
+    def makeRepo(self, server, r):
         """Make a repo descriptor from server instance and xml element.
 
         If new, this will assert that this repo's target is unknown
@@ -792,18 +794,12 @@ class Bundle(object):
         if target is None:
             target = path.rsplit('/', 1)[-1]
 
-        known = target in self.known_targets
-        if new and known:
-                raise ValueError("Target name conflict: %s" % target)
-        if not new and not known:
-                raise ValueError("Target name unknown: %s" % target)
-        self.known_targets.add(target)
-
         name = attrib.get('name')
 
-        return klass(server.getRepoUrl(path), self.bundle_dir,
-                     target, name, attrib,
+        repo = klass(server.getRepoUrl(path), self.bundle_dir,
+                     target, name, attrib, from_include=server.from_include,
                      remote_url_push=server.getRepoUrl(path, push=True))
+        return repo
 
     def includeBundles(self, elt, position):
         server = Server(elt.attrib)
@@ -818,6 +814,7 @@ class Bundle(object):
                                     MANIFEST_FILE)
             bdl = etree.parse(manifest)
             for j, subelt in enumerate(bdl.getroot()):
+                subelt.attrib['from-include'] = "true"
                 self.root.insert(position+j, subelt)
         elt.tag = 'already-included-bundles'
         elt.text = ("\n include-bundles element kept for reference after " +
@@ -830,7 +827,8 @@ class Bundle(object):
         self.tree = etree.parse(self.getManifestPath())
         self.root = self.tree.getroot()
 
-        res = []
+        repos = {} # target -> repo
+        targets = [] # *ordered* list of repo names
 
         for i, elt in enumerate(self.root):
             if elt.tag == 'include-bundles':
@@ -843,11 +841,32 @@ class Bundle(object):
             server = Server(s.attrib)
             for r in s:
                 repo = self.makeRepo(server, r)
-                if repo is not None:
-                    res.append(repo)
+                if repo is None:
+                    continue
 
-        self.descriptors = res
-        return res
+                target = repo.target
+                existing = repos.get(target)
+                if existing is None:
+                    targets.append(target)
+                    repos[target] = repo
+                else:
+                    if repo.from_include:
+                        logger.info(("Got target %s at toplevel and later "
+                                     "through include-bundles. First wins."),
+                                    target)
+                        continue
+                    if existing.from_include and not repo.from_include:
+                        logger.info(("Got target %s first through "
+                                     "include-bundles and then at toplevel. "
+                                     "Second wins"), target)
+                        targets.remove(target)
+                        targets.append(target)
+                        repos[target] = repo
+                    else:
+                        raise ValueError("Target name conflict: %s" % target)
+
+        self.descriptors = tuple(repos[target] for target in targets)
+        return self.descriptors
 
     #
     # Command-line operations
@@ -930,7 +949,8 @@ class Bundle(object):
 
         new_tags = {}
         # Release of all repos
-        for desc in self.getRepoDescriptors():
+        descriptors = self.getRepoDescriptors()
+        for desc in descriptors:
             if isinstance(desc, Tag):
                 logger.info("Target %s is a tag (%s). Not releasing.",
                             desc.target, desc.name)
@@ -943,6 +963,7 @@ class Bundle(object):
                 return 1
 
         # update xml tree
+        known_targets = set(desc.target for desc in descriptors)
         for s in self.root.getchildren():
             if s.tag != 'server':
                 continue
@@ -951,8 +972,12 @@ class Bundle(object):
                 if r.tag != 'branch':
                     continue
 
-                desc = self.makeRepo(server, r, new=False)
-                new_tag = new_tags[desc.target]
+                desc = self.makeRepo(server, r)
+                target = desc.target
+                if target not in known_targets:
+                    raise ValueError(
+                        "Released target name %s unknown before hand" % target)
+                new_tag = new_tags[target]
                 if new_tag is None:
                     # not relased, but not an error
                     continue
