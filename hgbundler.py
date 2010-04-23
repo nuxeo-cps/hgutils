@@ -1098,6 +1098,8 @@ class Bundle(object):
         logger.info("Creation of output directory %s", output_dir)
         os.mkdir(output_dir)
 
+        self.createArchiveVersionFiles(tag_name, output_dir)
+
         has_sub = False
         for desc in self.getRepoDescriptors():
             has_sub = has_sub or desc.is_sub
@@ -1113,6 +1115,15 @@ class Bundle(object):
             os.system(cmd)
 
         self.updateToInitialNode()
+
+    def createArchiveVersionFiles(self, tag_name, output_dir):
+        def in_ar(p):
+            return os.path.join(output_dir, p)
+
+        f = open(in_ar('version.txt'), 'w')
+        f.write('%s\nArchive produced by hgbundler from bundle tag %s\n' % (
+                tag_name, tag_name))
+        f.close()
 
 if __name__ == '__main__':
     commands = {'make-clones': 'make_clones',
