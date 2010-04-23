@@ -21,6 +21,7 @@
 import os
 import sys
 import popen2
+import re
 
 from datetime import datetime
 from optparse import OptionParser
@@ -69,6 +70,7 @@ except AttributeError:
 split = HG_VERSION_STR.split('+', 1)
 HG_VERSION_COMPLEMENT = len(split) == 2 and split[1] or None
 HG_VERSION = tuple(int(x) for x in split[0].split('.'))
+BM_MERGE_RE = re.compile(r'^merging changes from \w+://')
 
 def make_clone(url, target_path):
     base_dir, target = os.path.split(target_path)
@@ -339,16 +341,45 @@ class Tag(RepoDescriptor):
     def getName(self):
         return self.name
 
+    def nodeIfBundleman(self, node):
+        """If tag has been done by bundleman, return child. See #2143
+        """
+        tag_ctx = self.repo[node]
+        children = tag_ctx.children()
+        if not children:
+            # not a bundleman tag
+            return node
+
+        for ctx in children:
+            child_desc = ctx.description()
+            if BM_MERGE_RE.match(child_desc) and child_desc.endswith('/'.join(
+                (self.target, 'tags', self.name))):
+                node = ctx.node()
+                logger.debug("Tag %s for %s made by bundleman (using child %s)",
+                             self.name, self.local_path_rel, hg_hex(node))
+                break
+
+        return node
+
     def tip(self):
-        """Cheating with terminology: in that case that's just the tag node."""
+        """Cheating with terminology: in that case that's just the tag node.
+
+        In the special case of bundleman made tags (see #2143)
+        the conversion process to mercurial had the effet to set the tag right
+        before update of version files, because bundleman changed them later
+        in the svn tag itself.
+        Therefore, we need to go to the child (merge from the tag).
+        """
         tags = self.getRepo().tags()
         name = self.name
 
         try:
-            return tags[name]
+            node = tags[name]
         except KeyError:
             raise ValueError("Tag '%s' not found in repo %s", name,
                              self.local_path_rel)
+
+        return self.nodeIfBundleman(node)
 
     def xml(self):
         t = etree.Element('tag')
