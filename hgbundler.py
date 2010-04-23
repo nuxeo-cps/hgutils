@@ -258,6 +258,32 @@ class RepoDescriptor(object):
         Release means update to VERSION, CHANGES, etc + mercurial tag etc."""
         raise NotImplementedError
 
+    def updateVersionFilesInArchive(self, ar_dir):
+        """Update version files to be more appropriate in archive.
+
+        this is also meant to ease diffing bundleman produced archives."""
+
+        def in_ar(path):
+            return os.path.join(ar_dir, path)
+
+        try:
+            os.unlink(in_ar('CHANGES'))
+            os.rename(in_ar('HISTORY'), in_ar('CHANGELOG.txt'))
+        except OSError:
+            logger.debug("Tag not made by hgbundler nor bundleman")
+            return
+
+        detailed_v = in_ar('VERSION')
+        if os.path.isfile(detailed_v):
+            f = open(detailed_v)
+            content = f.read()
+            _, v, r = parseNuxeoVersionFile(content)
+            f.close()
+
+            f = open(in_ar('version.txt'), 'w')
+            f.write('%s-%s\n\n' % (v, r))
+            f.close()
+
     def archive(self, output_dir):
         repo = self.getRepo()
         dest = os.path.join(output_dir, self.local_path_rel)
@@ -265,6 +291,9 @@ class RepoDescriptor(object):
                     self.local_path_rel, self.getName(), dest)
         archival.archive(repo, dest, self.tip(),
                          'files', True, hg_cmdutil.match(repo, []))
+
+        self.updateVersionFilesInArchive(dest)
+
         if self.is_sub:
             src, dest, clone = self.subSrcDest(base_path=output_dir)
 
