@@ -336,9 +336,19 @@ class RepoDescriptor(object):
 
 class Tag(RepoDescriptor):
 
-    def release(self, **kw):
-        logger.warn("No need to perform release on tag %s for target %s",
-                    self.name, self.target)
+    def releaseCheck(self, **kw):
+        ctx = self.getRepo()[None]
+        parents = ctx.parents()
+        if len(parents) != 1:
+            logger.critical("Target %s is supposed to be at tag %s but "
+                            "looks like an uncommited merge", self.target,
+                            self.name)
+            raise RepoReleaseError
+
+        if self.tip() != parents[0].node():
+            logger.error("Target %s is not updated to tag %s. Aborting.",
+                         self.target, self.name)
+            raise RepoReleaseError
 
     def getName(self):
         return self.name
@@ -985,8 +995,9 @@ class Bundle(object):
         descriptors = self.getRepoDescriptors()
         for desc in descriptors:
             if isinstance(desc, Tag):
-                logger.info("Target %s is a tag (%s). Not releasing.",
+                logger.info("Target %s is a tag (%s). Just checking.",
                             desc.target, desc.name)
+                desc.releaseCheck()
                 continue
             try:
                 new_tags[desc.target] = desc.release(
