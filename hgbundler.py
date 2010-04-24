@@ -877,7 +877,6 @@ class Bundle(object):
         attrib = r.attrib
         path = attrib.get('path')
         if path is None:
-            import pdb; pdb.set_trace()
             raise ValueError(
                 "element with no path: %s" % etree.tostring(r))
 
