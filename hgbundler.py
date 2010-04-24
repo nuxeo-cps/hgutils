@@ -842,30 +842,69 @@ class Bundle(object):
                     tag_name, hg_hex(node))
         hg.update(self.bundle_repo, node)
 
+    @classmethod
+    def repoClass(self, elt):
+        """Return the class for repo XML elt, or None if not a repo but valid.
+        """
+        etag = elt.tag
+        if callable(etag):
+            # This is probably just an XML comment (lxml only)
+            return None
+        try:
+            return self.element2class[etag]
+        except KeyError:
+            raise ValueError("Unknown repo mode: %s", etag)
+
+    @classmethod
+    def isRepoElement(self, elt):
+        """To be used if one does not need the class.
+
+        This doesn't raise exceptions.
+        """
+        try:
+            return self.repoClass(elt) is not None
+        except ValueError:
+            return False
+
+    @classmethod
+    def targetAndPath(self, r):
+        """Compute the target of the given repo element.
+
+        if r is None, just return None."""
+
+        if r is None:
+            return
+
+        attrib = r.attrib
+        path = attrib.get('path')
+        if path is None:
+            import pdb; pdb.set_trace()
+            raise ValueError(
+                "element with no path: %s" % etree.tostring(r))
+
+        target = attrib.get('target')
+        if target is None:
+            target = path.rsplit('/', 1)[-1]
+
+        return target, path
+
+    @classmethod
+    def repoTarget(self, r):
+        """Shortcut"""
+        return self.targetAndPath(r)[0]
+
     def makeRepo(self, server, r):
         """Make a repo descriptor from server instance and xml element.
 
         If new, this will assert that this repo's target is unknown
         Otherwise, will ensure on the contrary that it is known."""
 
-        etag = r.tag
-        if callable(etag):
-            # This is probably just an XML comment (lxml only)
-            return None
-        klass = self.element2class.get(etag)
+        klass = self.repoClass(r)
         if klass is None:
-            raise ValueError("Unknown repo mode: %s", r.tag)
+            return
+        target, path = self.targetAndPath(r)
 
         attrib = r.attrib
-        path = attrib.get('path')
-        if path is None:
-            raise ValueError(
-                "element with no path: %s" % etree.tosring(r))
-
-        target = attrib.get('target')
-        if target is None:
-            target = path.rsplit('/', 1)[-1]
-
         name = attrib.get('name')
 
         repo = klass(server.getRepoUrl(path), self.bundle_dir,
@@ -875,6 +914,19 @@ class Bundle(object):
 
     def includeBundles(self, elt, position):
         server = Server(elt.attrib)
+
+        excluded = set()
+
+        todel = []
+        for e in elt:
+            if e.tag != 'exclude':
+                continue
+            excluded.add(e.attrib['target'])
+            todel.append(e)
+        # two passes to avoid pbms with liveness of lxml obj
+        for e in todel:
+            elt.remove(e)
+
         for r in elt:
             repo = self.makeRepo(server, r)
             if repo is None: # happens, e.g, with XML comments
@@ -887,7 +939,20 @@ class Bundle(object):
             bdl = etree.parse(manifest)
             for j, subelt in enumerate(bdl.getroot()):
                 subelt.attrib['from-include'] = "true"
+
+                subrepos = [t for t in subelt if self.isRepoElement(t)]
+
+                for t in subrepos:
+                    target = self.repoTarget(t)
+                    if target not in excluded:
+                        continue
+
+                    logger.info("Excluding target %s from included bundle %s",
+                                target, repo.target)
+                    subelt.remove(t)
+
                 self.root.insert(position+j, subelt)
+
         elt.tag = 'already-included-bundles'
         elt.text = ("\n include-bundles element kept for reference after " +
                     "performing the inclusion\n")
