@@ -83,6 +83,15 @@ specify bundles to include. Example for the CPS-3-full bundle::
      <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
    </include-bundles>
 
+One can exclude some targets from an ``include-bundles`` directive
+(see trac ticket #2147)::
+
+   <include-bundles
+       server-url="http://mercurial.racinet.org/CPS">
+     <exclude target="CPSCourrier" />
+     <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
+   </include-bundles>
+
 Remarks::
 
  - inclusion nesting is neither possible nor planned
@@ -93,12 +102,40 @@ Remarks::
    release the included bundle, but releases the components if
    needed. There aren't any more includes in the resulting bundle tag.
 
+ - ``exclude`` directives are read before the inclusion actually
+   starts. Therefore it doesn't matter if they are before or after the
+   ``branch`` or ``tag`` elements. They are local to the current
+   ``include-bundles`` directive,
+
 Planned options::
 
  - including, with a change of server urls
- - ignore some products while including (use-case:
-   private branch for a product, specified somewhere else in
-   the manifest)
+
+Precedence rules and overrides
+------------------------------
+See also trac #2141
+
+It is illegal to specify twice the same target,
+except in one case: if one of those comes from
+``include-bundles``. In that case, the explicit specification (at
+toplevel) wins.
+
+Example: CPS-3.4.6-base, with CPSDefault on a private branch::
+
+   <server name="myserver" url="http://hg.example.com/CPS/products">
+      <branch path="CPSDefault" name="my-private-branch"/>
+   </server>
+
+   <include-bundles
+       server-url="http://mercurial.racinet.org/CPS">
+     <tag target="CPS-3.4.6-base" path="bundles" subpath="CPS-3-base"/>
+   </include-bundles>
+
+The ordering does not matter, but is preserved: everything happens as
+if CPSDefault had been explicitely excluded from ``include-bundle``.
+
+Beware that ordering might be important in case of nested repos (see
+the "deeper svn externals" section).
 
 
 OPERATIONS
