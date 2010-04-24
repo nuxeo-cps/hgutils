@@ -231,7 +231,6 @@ class RepoDescriptor(object):
 
         if os.path.exists(self.local_path):
             logger.debug("Ignoring the existing clone %s", self.local_path_rel)
-            return False
         else:
             logger.info("Creating clone %s", self.local_path_rel)
             make_clone(self.remote_url, self.local_path)
