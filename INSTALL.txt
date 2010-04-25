@@ -9,24 +9,33 @@ Dependencies
     This is in all major linux distributions. Debian example::
          aptitude install python-lxml
 
-  - bundleman:
-    Should eventually be relaxed, but still necessary for the release process.
-    To get it on *nix, just do, assuming you have distutils::
-          easy_install bundleman
-
   - tidy:
     This is for the pretty dumping of the manifest at the end of the
     release-bundle process. This is in all major linux distributions.
     Debian example::
          aptitude install tidy
 
+  - Pure python dependencies are managed by zc.buildout. Therefore you
+    need setuptools/distribute
+
 
 Installation
 ============
 
-There is ironically no packaging yet for hgutils. Simply put ``hgmap``
-and ``hgbundler.py`` on the PATH (by copying them into /usr/local/bin
-for instance).
+Buildout sandbox
+----------------
 
-This approach works because ``hgbundler.py`` is a single (too long)
-module. That won't change unless hgbundler gets a proper packaging, of course.
+Run::
+
+  python bootstrap.py
+  bin/buildout
+
+You'll find the produced relocatable scripts in the bin/ subdirectory,
+notably hgbundler, strip_reorg.sh
+
+They usually work on the current directory, so you'll have to
+put them on your PATH somehow.
+
+System-wide
+-----------
+TODO
