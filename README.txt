@@ -24,7 +24,7 @@ the following example::
   <?xml version="1.0"?>
   <bundle name="CPS-example">
     <server name="racinet"
-            url="http://mercurial.racinet.org/CPS">
+            url="http://hg.cps-cms.org/CPS">
       <tag name="CPS-3.4.0" path="products/CPSSchemas"/>
       <branch path="products/CPSDefault"/> <!-- default branch, aka trunk -->
       <branch name="unicode" path="products/CPSDocument"/>
@@ -34,7 +34,7 @@ the following example::
 This declares three components, available as repositories at the given server
 url. For instance, the repository for the first would be::
 
-  http://mercurial.racinet.org/CPS/products/CPSSchemas
+  http://hg.cps-cms.org/CPS/products/CPSSchemas
 
 As you can see, there are two types of components: tags and
 branches. The trunk being in Mercurial the default branch, there's no
@@ -79,7 +79,7 @@ To avoid repeating over and over a big list of references, you may
 specify bundles to include. Example for the CPS-3-full bundle::
 
    <include-bundles
-       server-url="http://mercurial.racinet.org/CPS">
+       server-url="http://hg.cps-cms.org/CPS">
      <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
    </include-bundles>
 
@@ -87,7 +87,7 @@ One can exclude some targets from an ``include-bundles`` directive
 (see trac ticket #2147)::
 
    <include-bundles
-       server-url="http://mercurial.racinet.org/CPS">
+       server-url="http://hg.cps-cms.org/CPS">
      <exclude target="CPSCourrier" />
      <branch target="CPS-3-full" path="bundles" subpath="CPS-3-full"/>
    </include-bundles>
@@ -127,7 +127,7 @@ Example: CPS-3.4.6-base, with CPSDefault on a private branch::
    </server>
 
    <include-bundles
-       server-url="http://mercurial.racinet.org/CPS">
+       server-url="http://hg.cps-cms.org/CPS">
      <tag target="CPS-3.4.6-base" path="bundles" subpath="CPS-3-base"/>
    </include-bundles>
 
