@@ -1188,7 +1188,7 @@ class Bundle(object):
                 tag_name, tag_name))
         f.close()
 
-if __name__ == '__main__':
+def main():
     commands = {'make-clones': 'make_clones',
                 'update-clones': 'update_clones',
                 'clones-refresh-url': 'clones_refresh_url',
@@ -1245,3 +1245,6 @@ if __name__ == '__main__':
 
     status = getattr(bundle, meth)(*arguments[1:], **dict(options=options))
     sys.exit(status)
+
+if __name__ == '__main__':
+    main()
