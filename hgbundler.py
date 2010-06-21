@@ -104,6 +104,10 @@ class NodeNotFoundError(Exception):
     pass
 
 
+class BranchNotFoundError(KeyError):
+    pass
+
+
 def _findrepo(p):
     """Find with of path p is an hg repo.
 
@@ -783,7 +787,12 @@ class Branch(RepoDescriptor):
 
     def tip(self):
         """Return the tip of this branch."""
-        return self.getRepo().branchtags()[self.getName()]
+        try:
+            return self.getRepo().branchtags()[self.getName()]
+        except KeyError:
+            logger.error("Branch %s not found in repository %s ",
+                         self.getName(), self.local_path_rel)
+            raise BranchNotFoundError(self.getName())
 
     def heads(self):
         """Return the heads for this branch."""
