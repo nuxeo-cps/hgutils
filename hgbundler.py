@@ -104,6 +104,10 @@ class NodeNotFoundError(Exception):
     pass
 
 
+class BranchNotFoundError(KeyError):
+    pass
+
+
 def _findrepo(p):
     """Find with of path p is an hg repo.
 
@@ -783,7 +787,12 @@ class Branch(RepoDescriptor):
 
     def tip(self):
         """Return the tip of this branch."""
-        return self.getRepo().branchtags()[self.getName()]
+        try:
+            return self.getRepo().branchtags()[self.getName()]
+        except KeyError:
+            logger.error("Branch %s not found in repository %s ",
+                         self.getName(), self.local_path_rel)
+            raise BranchNotFoundError(self.getName())
 
     def heads(self):
         """Return the heads for this branch."""
@@ -801,8 +810,9 @@ class Bundle(object):
 
         self.tree = None
         self.root = None
-        self.descriptors = None
         self.bundle_repo = None
+        self.sub_bundles = None
+        self.descriptors = None
         self.initial_node = None
 
     def getManifestPath(self):
@@ -840,6 +850,15 @@ class Bundle(object):
         logger.info("Updating bundle to tag %s (node %s)",
                     tag_name, hg_hex(node))
         hg.update(self.bundle_repo, node)
+
+    def getRoot(self):
+        root = self.root
+        if self.root is not None:
+            return self.root
+
+        self.tree = etree.parse(self.getManifestPath())
+        root = self.root = self.tree.getroot()
+        return root
 
     @classmethod
     def repoClass(self, elt):
@@ -910,28 +929,63 @@ class Bundle(object):
                      remote_url_push=server.getRepoUrl(path, push=True))
         return repo
 
-    def includeBundles(self, elt, position):
-        server = Server(elt.attrib)
+    def getSubBundles(self):
+        """Extract and return subbundles information."""
 
-        excluded = set()
+        sub_bundles = self.sub_bundles
+        if sub_bundles is not None:
+            return sub_bundles
 
-        todel = []
-        for e in elt:
-            if e.tag != 'exclude':
+        sub_bundles = []
+        for pos, elt in enumerate(self.getRoot()):
+            if elt.tag != 'include-bundles':
                 continue
-            excluded.add(e.attrib['target'])
-            todel.append(e)
-        # two passes to avoid pbms with liveness of lxml obj
-        for e in todel:
-            elt.remove(e)
 
-        for r in elt:
-            repo = self.makeRepo(server, r)
-            if repo is None: # happens, e.g, with XML comments
-                continue
-            repo.make_clone()
-            repo.update()
+            server = Server(elt.attrib)
 
+            excluded = set()
+
+            todel = []
+            for e in elt:
+                if e.tag != 'exclude':
+                    continue
+                excluded.add(e.attrib['target'])
+                todel.append(e)
+
+            # two passes to avoid pbms with liveness of lxml obj
+            for e in todel:
+                elt.remove(e)
+
+            descs = []
+            for r in elt:
+                repo = self.makeRepo(server, r)
+                if repo is None: # happens, e.g, with XML comments
+                    continue
+                repo.make_clone()
+                repo.update()
+
+                descs.append(repo)
+
+            sub_bundles.append(dict(server=server, position=pos,
+                                    excluded=excluded,
+                                    element=elt,
+                                    descriptors=tuple(descs)))
+
+        self.sub_bundles = sub_bundles
+        return sub_bundles
+
+    def includeBundles(self, server=None, position=None, excluded=None,
+                       descriptors=None, element=None):
+        """Do the actual job of inclusion from the info from getSubBundles."""
+
+        if server is None or position is None or excluded is None:
+            raise ValueError
+
+        if excluded is None:
+            excluded = ()
+
+        root = self.getRoot()
+        for repo in descriptors:
             manifest = os.path.join(self.bundle_dir, repo.target,
                                     MANIFEST_FILE)
             bdl = etree.parse(manifest)
@@ -949,28 +1003,26 @@ class Bundle(object):
                                 target, repo.target)
                     subelt.remove(t)
 
-                self.root.insert(position+j, subelt)
+                root.insert(position+j, subelt)
 
-        elt.tag = 'already-included-bundles'
-        elt.text = ("\n include-bundles element kept for reference after " +
-                    "performing the inclusion\n")
+        if element is not None:
+            element.tag = 'already-included-bundles'
+            element.text = (
+                "\n include-bundles element kept for reference after " +
+                "performing the inclusion\n")
 
     def getRepoDescriptors(self):
         if self.descriptors is not None:
             return self.descriptors
 
-        self.tree = etree.parse(self.getManifestPath())
-        self.root = self.tree.getroot()
-
         repos = {} # target -> repo
         targets = [] # *ordered* list of repo names
 
-        for i, elt in enumerate(self.root):
-            if elt.tag == 'include-bundles':
-                self.includeBundles(elt, i)
+        for s in self.getSubBundles():
+            self.includeBundles(**s)
 
         # need to iterate again, because includes may have changed the children
-        for s in self.root:
+        for s in self.getRoot():
             if s.tag != 'server':
                 continue
             server = Server(s.attrib)
@@ -1017,6 +1069,10 @@ class Bundle(object):
             desc.update()
 
     def clones_refresh_url(self, options=None):
+        for s in self.getSubBundles():
+            for desc in s['descriptors']:
+                desc.updateUrls()
+
         for desc in self.getRepoDescriptors():
             desc.updateUrls()
 
@@ -1100,7 +1156,7 @@ class Bundle(object):
 
         # update xml tree
         known_targets = set(desc.target for desc in descriptors)
-        for s in self.root.getchildren():
+        for s in self.getRoot().getchildren():
             if s.tag != 'server':
                 continue
             server = Server(s.attrib)
