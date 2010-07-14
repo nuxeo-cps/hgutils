@@ -118,7 +118,7 @@ def _findrepo(p):
 
 def _currentNodeRev(repo):
     """Return current node and rev for repo."""
-    ctx = repo[None]
+    ctx = repo.changectx(None)
     node = ctx.node()
     if node is None:
         parents = ctx.parents()
@@ -384,7 +384,7 @@ class Tag(RepoDescriptor):
     def nodeIfBundleman(self, node):
         """If tag has been done by bundleman, return child. See #2143
         """
-        tag_ctx = self.repo[node]
+        tag_ctx = self.repo.changectx(node)
         children = tag_ctx.children()
         if not children:
             # not a bundleman tag
@@ -550,7 +550,7 @@ First release built by: %s at: %s
         self.release_nr = ret[2] and int(ret[2]) or None
 
     def changedSinceTag(self, node, tag_name=None):
-        tag_ctx = self.repo[node]
+        tag_ctx = self.repo.changectx(node)
         children = tag_ctx.children()
         base_error_msg = ("Previous tag %s (from VERSION) " +
                          "not done by hgbundler. ")
@@ -581,7 +581,7 @@ First release built by: %s at: %s
         return True
 
     def dumpLogSince(self, node):
-        current_ctx = self.repo[None]
+        current_ctx = self.repo.changectx(None)
         current_node = current_ctx.node()
         if current_node is None:
             current_node = current_ctx.parents()[0].node()
@@ -700,7 +700,7 @@ class Branch(RepoDescriptor):
         a difference...
         """
         repo = self.getRepo()
-        ctx = repo[None]
+        ctx = repo.changectx(None)
         current_branch = ctx.branch()
         if current_branch != self.getName():
             logger.error("Repository %s is on named branch '%s' instead of the"
