@@ -20,10 +20,6 @@
 
 import os
 import sys
-import popen2
-import re
-
-from datetime import datetime
 from optparse import OptionParser
 
 import logging

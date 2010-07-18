@@ -23,13 +23,8 @@ import logging
 import popen2
 
 from mercurial import hg
-from mercurial import archival
 from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
-from mercurial import cmdutil as hg_cmdutil
-import mercurial.patch
-import mercurial.util
-import mercurial.ui
 
 from common import etree
 from common import _findrepo, _currentNodeRev
@@ -38,9 +33,10 @@ from common import NodeNotFoundError, RepoNotFoundError
 from releaser import RepoReleaseError
 from repodescriptor import Branch, Tag
 from repodescriptor import HG_UI
+from repodescriptor import SEVERAL_PARENTS
 from constants import (ASIDE_REPOS,
                       )
-from common import HG_VERSION
+from common import HG_VERSION, HG_VERSION_STR
 
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 INCLUDES = '.hgbundler_incl'

@@ -26,7 +26,6 @@ import logging
 from mercurial import hg
 from mercurial import archival
 from mercurial.node import short as hg_hex
-from mercurial import commands as hg_commands
 from mercurial import cmdutil as hg_cmdutil
 import mercurial.patch
 import mercurial.util
@@ -34,9 +33,11 @@ import mercurial.ui
 
 from common import etree
 from common import _currentNodeRev
+from common import BranchNotFoundError
 
 from releaser import Releaser
 from releaser import RepoReleaseError
+from releaser import parseNuxeoVersionFile
 from constants import (ASIDE_REPOS,
                        )
 
@@ -264,6 +265,12 @@ class RepoDescriptor(object):
         ui.setconfig('paths', 'default-push', self.remote_url_push)
         self.writeHgrcPaths()
 
+    def tip(self):
+        raise NotImplementedError()
+
+    def getName(self):
+        return 'no applicable name'
+
 class Tag(RepoDescriptor):
 
     def releaseCheck(self, **kw):
@@ -370,9 +377,9 @@ class Branch(RepoDescriptor):
         current_branch = ctx.branch()
         if current_branch != self.getName():
             logger.error("Repository %s is on named branch '%s' instead of the"
-                         "'%s' that's specified in %s (or guessed)",
-                         self.local_path_rel, current_branch, self.name,
-                         MANIFEST_FILE)
+                         "'%s' that's specified in the bundle manifest file "
+                         "(or guessed)",
+                         self.local_path_rel, current_branch, self.name)
             raise RepoReleaseError(WRONG_BRANCH)
 
         st = repo.status()
