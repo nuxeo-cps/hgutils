@@ -14,7 +14,8 @@ setup(
     url='',
     install_requires=['bundleman',
     ],
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     include_package_data=True,
     entry_points="""
     [console_scripts]
