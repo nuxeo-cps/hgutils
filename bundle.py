@@ -19,6 +19,8 @@
 """Bundle and Server classes."""
 
 import os
+import logging
+import popen2
 
 from mercurial import hg
 from mercurial import archival
@@ -29,37 +31,22 @@ import mercurial.patch
 import mercurial.util
 import mercurial.ui
 
-try:
-    from lxml import etree
-except ImportError:
-    try:
-        from elementtree import ElementTree as etree
-    except ImportError:
-        logger.fatal("Sorry, need either elementtree or lxml")
-        sys.exit(1)
+from common import etree
+from common import _findrepo, _currentNodeRev
+from common import NodeNotFoundError, RepoNotFoundError
 
-
+from releaser import RepoReleaseError
 from repodescriptor import Branch, Tag
 from repodescriptor import HG_UI
 from constants import (ASIDE_REPOS,
-                       )
+                      )
+from common import HG_VERSION
 
 MANIFEST_FILE = "BUNDLE_MANIFEST.xml"
 INCLUDES = '.hgbundler_incl'
 BUNDLE_RELEASE_BRANCH_PREFIX='hgbundler-release-'
 
-
-class RepoNotFoundError(Exception):
-    pass
-
-
-class NodeNotFoundError(Exception):
-    pass
-
-
-class BranchNotFoundError(KeyError):
-    pass
-
+logger = logging.getLogger('hgbundler.bundle')
 
 class Server(object):
 

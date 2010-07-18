@@ -16,8 +16,18 @@
 #
 # $Id$
 
+import os
+import logging
+from datetime import datetime
+
+from mercurial.node import short as hg_hex
+import mercurial.patch
+from mercurial import commands as hg_commands
+
 from bundleman.utils import parseZopeVersionFile, parseNuxeoVersionFile
 from bundleman.utils import parseVersionString, parseNuxeoChanges
+
+logger = logging.getLogger('hgbundler.releaser')
 
 class RepoReleaseError(Exception):
     pass

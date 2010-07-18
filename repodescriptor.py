@@ -32,6 +32,9 @@ import mercurial.patch
 import mercurial.util
 import mercurial.ui
 
+from common import etree
+from common import _currentNodeRev
+
 from releaser import Releaser
 from releaser import RepoReleaseError
 from constants import (ASIDE_REPOS,
