@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<bundle>
+
+  <server name="CPS Products, mainline server"
+	  url="$TEST_DATA_PATH/sample_repos">
+    <branch path="RepoOne" />
+    <branch path="RepoTwo"/>
+  </server>
+
+</bundle>
