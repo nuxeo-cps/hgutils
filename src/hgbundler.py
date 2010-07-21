@@ -69,6 +69,7 @@ def main():
     bundle_commands = {'make-clones': 'make_clones',
                        'update-clones': 'update_clones',
                        'clones-refresh-url': 'clones_refresh_url',
+                       'clones-out': 'clones_out',
                        'release-clone': 'release_clone',
                        'release-bundle': 'release',
                        'archive': 'archive'}

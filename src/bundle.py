@@ -354,6 +354,17 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             desc.updateUrls()
 
+    def clones_out(self, options=None):
+        for s in self.getSubBundles():
+            for desc in s['descriptors']:
+                desc.out()
+
+        for desc in self.getRepoDescriptors():
+            logger.debug('Performing outgoing for %s', desc.local_path_rel)
+            o, dest = desc.outgoing()
+            if o:
+                logger.warn("%d changeset(s) not in %s", o, dest)
+
     def release_clone(self, target, options=None):
         """Release one given clone
         """

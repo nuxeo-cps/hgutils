@@ -26,6 +26,7 @@ import logging
 from mercurial import hg
 from mercurial import archival
 from mercurial.node import short as hg_hex
+from mercurial.node import nullid
 from mercurial import cmdutil as hg_cmdutil
 import mercurial.patch
 import mercurial.util
@@ -268,6 +269,9 @@ class RepoDescriptor(object):
     def tip(self):
         raise NotImplementedError()
 
+    def outgoing(self):
+        raise NotImplementedError()
+
     def getName(self):
         return 'no applicable name'
 
@@ -335,6 +339,10 @@ class Tag(RepoDescriptor):
         t.attrib.update(self.xml_attrs)
         t.attrib['name'] = self.name
         return t
+
+    def outgoing(self):
+        """By definition, a tag has nothing to push."""
+        return 0, None
 
 class Branch(RepoDescriptor):
 
@@ -471,3 +479,23 @@ class Branch(RepoDescriptor):
         """Return the heads for this branch."""
         return self.getRepo().branchheads(self.getName())
 
+    def outgoing(self, **opts):
+        """Tell how many changesets are not found in destination
+
+        Adapted from mercurial.commands to produce no output.
+        """
+        repo = self.getRepo()
+        ui = repo.ui
+        old_quiet = ui.quiet
+        ui.quiet = True
+        limit = hg_cmdutil.loglimit(opts)
+        dest, revs, checkout = hg.parseurl(
+            ui.expandpath('default-push', 'default'), opts.get('rev'))
+        hg_cmdutil.setremoteconfig(ui, opts)
+        if revs:
+            revs = [repo.lookup(rev) for rev in revs]
+
+        other = hg.repository(ui, dest)
+        o = repo.findoutgoing(other, force=opts.get('force'))
+        ui.quiet = old_quiet
+        return len(o), dest
