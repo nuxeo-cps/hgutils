@@ -67,7 +67,10 @@ PKG_RELEASE=%s
         self.repo = desc.getRepo()
         self.branch = desc.getName()
         self.parseChanges()
-        self.parseVersion()
+        if self.initial:
+            self.setInitialVersion()
+        else:
+            self.parseVersion()
 
     def parseChanges(self):
         """Return the change type."""
@@ -77,16 +80,21 @@ PKG_RELEASE=%s
         try:
             content = open(changes_path).read()
         except IOError:
-            logger.error('no CHANGES file in branch %s of %s', self.branch,
-                         desc.local_path_rel)
-            raise RepoReleaseError()
-        self.changes = parseNuxeoChanges(content)
+            # no changes file, but still recognized, that means initial release
+            self.changes = ([], [], [], [])
+            self.initial = True
+        else:
+            self.changes = parseNuxeoChanges(content)
+            self.initial = False
 
     def updateVersionFiles(self):
         fpath = self.desc.local_path
 
-        changes = open(os.path.join(fpath, 'CHANGES')).read()
-        history = open(os.path.join(fpath, 'HISTORY')).read()
+        if self.initial:
+            changes = history = ''
+        else:
+            changes = open(os.path.join(fpath, 'CHANGES')).read()
+            history = open(os.path.join(fpath, 'HISTORY')).read()
         f = open(os.path.join(fpath, 'HISTORY'), 'w+')
 
         prod_name = self.product_name
@@ -116,6 +124,12 @@ First release built by: %s at: %s
         f.write(self.tpl_changes % '')
         f.close()
 
+    def setInitialVersion(self):
+        self.product_name = os.path.split(self.desc.local_path_rel)[-1]
+        self.version_str = '0.0.0'
+        self.release_nr = '0'
+        return
+
     def parseVersion(self):
         """Extract name, version, release from VERSION or version.txt file.
 
@@ -132,12 +146,6 @@ First release built by: %s at: %s
                 break
             except IOError:
                 continue
-
-        if not content:
-            logger.error("No version file found in the branch '%s', "
-                         "of %s. Can't release", self.branch,
-                         desc.local_path_rel)
-            raise RepoReleaseError
 
         try:
             if file_name == 'VERSION':
@@ -207,6 +215,16 @@ First release built by: %s at: %s
                False if an existing tag must be used instead of the branch,
                None if no action is to be taken
         """
+        if self.initial:
+            logger.warn("No CHANGES file found in the branch '%s', "
+                         "of %s. Assuming initial release", self.branch,
+                         self.desc.local_path_rel)
+            if self.increment_major:
+                self.version_new = ['1.0.0', 1]
+            else:
+                self.version_new = ['0.0.1', 1]
+            return True
+
         changes = self.changes
         name = self.product_name
         release = self.release_nr

@@ -43,3 +43,11 @@ def un_hg(dirpath):
     hgpath = os.path.join(dirpath, '.hg')
     if os.path.isdir(hgpath):
         rmr(hgpath)
+
+class Options(object):
+    """Placeholder for expected command-line options."""
+
+    verbose = False
+    multiple_heads = False
+    release_again = False
+    increment_major = False

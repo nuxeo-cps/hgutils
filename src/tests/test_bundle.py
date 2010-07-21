@@ -17,12 +17,24 @@
 # $Id$
 
 import os
+import logging
 import unittest
+import tests
 from tests import TEST_DATA_PATH
 from tests import rmr, hg_init, un_hg
 
+from mercurial import hg
+from mercurial import commands as hg_commands
 from bundle import Server, Bundle
 from bundle import MANIFEST_FILE
+from repodescriptor import HG_UI
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(
+logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s'))
+logger = logging.getLogger('hgbundler')
+logger.addHandler(console_handler)
+logger.setLevel(logging.INFO)
 
 class ServerTestCase(unittest.TestCase):
 
@@ -32,19 +44,9 @@ class ServerTestCase(unittest.TestCase):
 
 class BundleTestCase(unittest.TestCase):
 
-    def sampleRepos(self):
-        basepath = os.path.join(TEST_DATA_PATH, 'sample_repos')
-        return tuple(
-            r for r in (os.path.join(basepath, d)
-                        for d in os.listdir(basepath))
-            if os.path.isdir(r))
-
     def setUp(self):
         self.tmpdir = os.path.join(TEST_DATA_PATH, 'tmp_bundle')
         os.mkdir(self.tmpdir)
-
-        for r in self.sampleRepos():
-            hg_init(r)
 
     def prepareBundle(self, bdl_rpath, manifest_rpath):
         bundle_path = os.path.join(self.tmpdir, bdl_rpath)
@@ -66,12 +68,36 @@ class BundleTestCase(unittest.TestCase):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
         bundle.make_clones()
 
+    def test_release(self):
+        bundle = self.prepareBundle('bundle', 'bundle1.xml')
+        hg_init(bundle.bundle_dir)
+
+        bundle.make_clones()
+
+        # This one's supposed to e tagged at 1.0.0 already
+        already = hg.repository(HG_UI, os.path.join(bundle.bundle_dir,
+                                                    'AlreadyReleased'))
+        hg_commands.tag(already.ui, already, '1.0.0', message='Previous tag')
+
+        bundle.release('TEST', options=tests.Options())
+
+    def test_repo_release_very_first(self):
+        bundle = self.prepareBundle('bundle', 'bundle1.xml')
+        hg_init(bundle.bundle_dir)
+
+        bundle.make_clones()
+        for desc in bundle.getRepoDescriptors():
+            if desc.target == 'NeverReleased':
+                break
+
+        desc.release()
+        l = os.listdir(desc.local_path)
+        self.assertTrue('CHANGES' in l)
+        self.assertTrue('VERSION' in l)
+        self.assertTrue('HISTORY' in l)
+
     def tearDown(self):
         rmr(self.tmpdir)
-        # stop versionning the test repos separately : give it back
-        # to hgutils
-        for r in self.sampleRepos():
-            un_hg(r)
 
 
 def test_suite():

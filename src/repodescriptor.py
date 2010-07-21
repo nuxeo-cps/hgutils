@@ -391,8 +391,8 @@ class Branch(RepoDescriptor):
 
     def isHgBundlerManaged(self):
         """True if the releases for this repo are managed through Hg Bundler"""
-        l = os.listdir(self.local_path_rel)
-        if not 'CHANGES' in l:
+        l = os.listdir(self.local_path)
+        if not '.hgbundler_managed' in l and not 'CHANGES' in l:
             return False
 
         return True
@@ -443,10 +443,14 @@ class Branch(RepoDescriptor):
             logger.info("Performing release of branch %s for %s",
                         name, self.local_path_rel)
             releaser.updateVersionFiles()
+            if releaser.initial:
+                self.getRepo().add(('VERSION', 'HISTORY'))
             self.getRepo().commit(
                 text="hgbundler prepared version files for release")
             tag_str = releaser.tag()
             releaser.initChangesFile()
+            if releaser.initial:
+                self.getRepo().add(('CHANGES',))
             self.getRepo().commit(text="hgbundler init new CHANGES file")
         else:
             tag_str = releaser.version_str

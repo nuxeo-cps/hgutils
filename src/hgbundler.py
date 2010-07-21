@@ -31,24 +31,60 @@ logger.addHandler(console_handler)
 logger.setLevel(logging.INFO)
 
 from bundle import Bundle
+from common import _findrepo
+
+def release_multiple_bundles(args, options=None, opt_parser=None):
+    """Release several bundles at once.
+
+    This is useful to provide several distributions from the same tag.
+    opt_parser can be given for error feedback integration.
+    """
+    if len(args) < 2:
+        if opt_parser is not None:
+            opt_parser.error("Please provide at least one bundle directory "
+                             "and the release name")
+        else:
+            raise ValueError("Not enough arguments.")
+        return 1
+
+    release_name = args[-1]
+    bundle_dirs = args[:-1]
+
+    # Checking the paths
+    repo_path = None
+    for d in bundle_dirs:
+        path = _findrepo(d)
+        if path is None:
+            raise ValueError("Directory '%s' not in a repository." % d)
+        if repo_path != path:
+            raise ValueError(("Directory '%s' not in same repository as the"
+                             "previous ones in the list") % d)
+
+    for d in bundle_dirs:
+        bundle = Bundle(d)
+        bundle.release(release_name, options=options)
 
 def main():
-    commands = {'make-clones': 'make_clones',
-                'update-clones': 'update_clones',
-                'clones-refresh-url': 'clones_refresh_url',
-                'release-clone': 'release_clone',
-                'release-bundle': 'release',
-                'archive': 'archive'}
-    usage = "usage: %prog [options] " + '|'.join(commands.keys())
+    global_commands = {'release-multiple': release_multiple_bundles}
+    bundle_commands = {'make-clones': 'make_clones',
+                       'update-clones': 'update_clones',
+                       'clones-refresh-url': 'clones_refresh_url',
+                       'release-clone': 'release_clone',
+                       'release-bundle': 'release',
+                       'archive': 'archive'}
+    usage = "usage: %prog [options] " + '|'.join(
+        global_commands.keys() + bundle_commands.keys())
     usage += """ [command args] \n
 
     command arguments:
 
-    command             arguments                comments
-    -----------------------------------------------------
-    release-clone       <clone relative path>     mandatory
-    release-bundle      <release name>            mandatory
-    archive             <bundle tag> <output dir> mandatory
+    command             arguments                     comments
+    -----------------------------------------------------------
+    release-clone       <clone relative path>         mandatory
+    release-bundle      <release name>                mandatory
+    archive             <bundle tag> <output dir>     mandatory
+    release-multiple    <bdl dir> [<bdl dir>]  <name> at least one bundle dir
+    
 """
     parser = OptionParser(usage=usage)
 
@@ -80,10 +116,14 @@ def main():
     if options.verbose:
         logger.setLevel(logging.DEBUG)
 
-    bundle = Bundle(options.bundle_dir)
-
     command = arguments[0]
-    meth = commands.get(command)
+    meth = global_commands.get(command)
+    if meth is not None:
+        status = meth(arguments[1:], options=options)
+        sys.exit(status)
+
+    bundle = Bundle(options.bundle_dir)
+    meth = bundle_commands.get(command)
     if meth is None:
         parser.error("Unknown command: " + command)
 
