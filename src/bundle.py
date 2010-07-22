@@ -405,27 +405,37 @@ class Bundle(object):
         f.write(formatted)
         f.close()
 
-    def release(self, release_name, options=None):
-        """Release the whole bundle."""
+    def release_repo_check(self, release_name, options=None):
+        """Does the mercurial checkings for release of the whole bundle.
+        """
         try:
             self.initBundleRepo()
         except RepoNotFoundError:
             logger.critical("The current bundle is not part of a mercurial."
                             "Repository. Releasing makes not sense.")
-            return 1
+            return
         except NodeNotFoundError, e:
             if str(e) == SEVERAL_PARENTS:
                 logger.critical("Current bundle state has several parents. "
                                 "uncommited merge?")
-                return 1
+                return
 
         bundle_repo = self.bundle_repo
-
         branch_name = BUNDLE_RELEASE_BRANCH_PREFIX+release_name
         if branch_name in bundle_repo.branchtags():
             logger.critical("There is already a release '%s' for this bundle",
                             release_name)
-            return 1
+            return
+
+        return branch_name
+
+    def release(self, release_name, check=True, commit=True, options=None):
+        """Release the whole bundle."""
+
+        if check:
+            branch_name = self.release_repo_check(release_name, options=options)
+            if branch_name is None:
+                return 1
 
         new_tags = {}
         # Release of all repos
@@ -467,10 +477,21 @@ class Bundle(object):
                 t = new_tag.xml()
                 s.insert(i, t)
 
-        # create branch, update manifest, commit, tag, close branch and get back
+        self.writeManifest()
+
+        if commit:
+            self.release_commit(branch_name, release_name, options=options)
+
+    def release_commit(self, branch_name, release_name, options=None):
+        """Does all the mercurial writes after manifest updates for release.
+
+        Create branch, update manifest, commit, tag, close branch and get back.
+        """
+        self.initBundleRepo()
+        bundle_repo = self.bundle_repo
+
         hg_commands.branch(bundle_repo.ui, bundle_repo, branch_name)
 
-        self.writeManifest()
         bundle_repo.commit(text="hgbundler update manifest for release")
         hg_commands.tag(bundle_repo.ui, bundle_repo, release_name,
                         message="hgbundler setting tag")

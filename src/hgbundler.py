@@ -33,7 +33,7 @@ logger.setLevel(logging.INFO)
 from bundle import Bundle
 from common import _findrepo
 
-def release_multiple_bundles(args, options=None, opt_parser=None):
+def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
     """Release several bundles at once.
 
     This is useful to provide several distributions from the same tag.
@@ -49,6 +49,8 @@ def release_multiple_bundles(args, options=None, opt_parser=None):
 
     release_name = args[-1]
     bundle_dirs = args[:-1]
+    if base_path:
+        bundle_dirs = [os.path.join(base_path, d) for d in bundle_dirs]
 
     # Checking the paths
     repo_path = None
@@ -56,13 +58,20 @@ def release_multiple_bundles(args, options=None, opt_parser=None):
         path = _findrepo(d)
         if path is None:
             raise ValueError("Directory '%s' not in a repository." % d)
-        if repo_path != path:
-            raise ValueError(("Directory '%s' not in same repository as the"
+        if repo_path is not None and repo_path != path:
+            raise ValueError(("Directory '%s' not in same repository as the "
                              "previous ones in the list") % d)
+        repo_path = path
 
+    # First bundle does the repo preparations
+    first = True
     for d in bundle_dirs:
         bundle = Bundle(d)
-        bundle.release(release_name, options=options)
+        if first:
+            branch_name = bundle.release_repo_check(release_name,
+                                                    options=options)
+        bundle.release(release_name, options=options, check=False, commit=False)
+    bundle.release_commit(branch_name, release_name, options=options)
 
 def main():
     global_commands = {'release-multiple': release_multiple_bundles}
@@ -85,7 +94,6 @@ def main():
     release-bundle      <release name>                mandatory
     archive             <bundle tag> <output dir>     mandatory
     release-multiple    <bdl dir> [<bdl dir>]  <name> at least one bundle dir
-    
 """
     parser = OptionParser(usage=usage)
 

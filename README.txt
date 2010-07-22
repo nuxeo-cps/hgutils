@@ -181,17 +181,19 @@ hgbundler clones-out
 --------------------
 
 Indicates which of the managed clones have changesets not found on
-server.
+server (logged at WARN level).
 
 The differences with ```hgmap outgoing``` are:
 
  - output is much more limited (to the point where one must get down
-   and perform a ``hg outgoing`` in the clone itself to get details)
+   and perform a ``hg outgoing`` in the clone itself to get details).
  - all clones are taken into account, including deeper ones or those
    of which but a subdirectory is used in the bundle.
 
 In short, if one wants to check that there's nothing to push without
 being flooded by console output, this is the right tool
+
+The repo being inspected is logged at DEBUG level, too.
 
 hgbundler release-bundle <tag>
 ------------------------------
