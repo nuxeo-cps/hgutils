@@ -70,7 +70,9 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
         if first:
             branch_name = bundle.release_repo_check(release_name,
                                                     options=options)
-        bundle.release(release_name, options=options, check=False, commit=False)
+        status = bundle.release(release_name, options=options, check=False, commit=False)
+        if status:
+            exit(status)
     bundle.release_commit(branch_name, release_name, options=options)
 
 def main():
