@@ -28,7 +28,11 @@ def rmr(dirpath):
         for name in files:
             os.remove(os.path.join(root, name))
         for name in dirs:
-            os.rmdir(os.path.join(root, name))
+            path = os.path.join(root, name)
+            if os.path.islink(path):
+                os.remove(path)
+            else:
+                os.rmdir(os.path.join(root, name))
     try:
         os.rmdir(dirpath)
     except OSError:

@@ -357,7 +357,7 @@ class Bundle(object):
     def clones_out(self, options=None):
         for s in self.getSubBundles():
             for desc in s['descriptors']:
-                desc.out()
+                desc.outgoing()
 
         for desc in self.getRepoDescriptors():
             logger.debug('Performing outgoing for %s', desc.local_path_rel)

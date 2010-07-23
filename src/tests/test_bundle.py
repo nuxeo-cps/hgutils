@@ -96,6 +96,17 @@ class BundleTestCase(unittest.TestCase):
         self.assertTrue('VERSION' in l)
         self.assertTrue('HISTORY' in l)
 
+    def test_out_with_sub(self):
+        bundle = self.prepareBundle('bundle', 'with_sub.xml')
+        bundle.make_clones()
+        l = set(f for f in os.listdir(bundle.bundle_dir)
+                if not f.startswith('.'))
+
+        self.assertEquals(l, set(['AlreadyReleased', 'NeverReleased',
+                                  'ToRelease', 'SubBundle',
+                                  'BUNDLE_MANIFEST.xml']))
+        bundle.clones_out()
+
     def tearDown(self):
         rmr(self.tmpdir)
 
