@@ -28,6 +28,8 @@ from mercurial import archival
 from mercurial.node import short as hg_hex
 from mercurial.node import nullid
 from mercurial import cmdutil as hg_cmdutil
+CMDUTIL_REMOTEUI = 'remoteui' in dir(hg_cmdutil)
+
 import mercurial.patch
 import mercurial.util
 import mercurial.ui
@@ -491,11 +493,14 @@ class Branch(RepoDescriptor):
         limit = hg_cmdutil.loglimit(opts)
         dest, revs, checkout = hg.parseurl(
             ui.expandpath('default-push', 'default'), opts.get('rev'))
-        hg_cmdutil.setremoteconfig(ui, opts)
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
+        if CMDUTIL_REMOTEUI:
+            other = hg.repository(hg_cmdutil.remoteui(repo, opts), dest)
+        else:
+            hg_cmdutil.setremoteconfig(ui, opts)
+            other = hg.repository(ui, dest)
 
-        other = hg.repository(ui, dest)
         o = repo.findoutgoing(other, force=opts.get('force'))
         ui.quiet = old_quiet
         return len(o), dest
