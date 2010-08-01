@@ -333,6 +333,9 @@ class Bundle(object):
         self.descriptors = tuple(repos[target] for target in targets)
         return self.descriptors
 
+    def pull_clones(self, from_bundle=None, targets=(), update=False):
+        """Perform a pull for targets from the given (local bundle)."""
+
     #
     # Command-line operations
     #
@@ -430,12 +433,17 @@ class Bundle(object):
         return branch_name
 
     def release(self, release_name, check=True, commit=True, options=None):
-        """Release the whole bundle."""
+        """Release the whole bundle.
+
+        Return status, list of released clones.
+        Return the list of released targets (actually in this implementation,
+        this is the list of targets that get updated in the manifest file).
+        """
 
         if check:
             branch_name = self.release_repo_check(release_name, options=options)
             if branch_name is None:
-                return 1
+                return 1, ()
 
         new_tags = {}
         # Release of all repos
@@ -451,7 +459,7 @@ class Bundle(object):
                     multiple_heads=options.multiple_heads,
                     increment_major=options.increment_major)
             except RepoReleaseError:
-                return 1
+                return 1, new_tags.keys()
 
         # update xml tree
         known_targets = set(desc.target for desc in descriptors)
@@ -481,6 +489,13 @@ class Bundle(object):
 
         if commit:
             self.release_commit(branch_name, release_name, options=options)
+
+        return 0, new_tags.keys()
+
+    def release_abort(self):
+        self.initBundleRepo()
+        repo = self.bundle_repo
+        hg_commands.revert(repo.ui, all=True)
 
     def release_commit(self, branch_name, release_name, options=None):
         """Does all the mercurial writes after manifest updates for release.

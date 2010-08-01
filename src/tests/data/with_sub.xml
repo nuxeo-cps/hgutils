@@ -2,11 +2,11 @@
 <bundle>
 
   <server name="hgbundler test repos on CPS mainline server"
-	  url="http://hg.cps-cms.org/CPS/hgutils-tests">
+	  url="/Users/gracinet/hg-repos/hgutils-tests">
     <branch path="AlreadyReleased" />
   </server>
 
-  <include-bundles server-url="http://hg.cps-cms.org/CPS/hgutils-tests">
+  <include-bundles server-url="/Users/gracinet/hg-repos/hgutils-tests">
     <branch path="bundles" subpath="Bundle-1" target="SubBundle"/>
   </include-bundles>
 

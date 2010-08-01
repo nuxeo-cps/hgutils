@@ -63,16 +63,23 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
                              "previous ones in the list") % d)
         repo_path = path
 
-    # First bundle does the repo preparations
-    first = True
-    for d in bundle_dirs:
-        bundle = Bundle(d)
-        if first:
-            branch_name = bundle.release_repo_check(release_name,
-                                                    options=options)
-        status = bundle.release(release_name, options=options, check=False, commit=False)
+    bundles = [Bundle(d) for d in bundle_dirs]
+
+    # First bundle does the common repo preparations
+    # all hg operations on this repo can be delegated to the last acting bundle
+    # (for commit or abort)
+    branch_name = bundles[0].release_repo_check(release_name, options=options)
+    for i, bundle in enumerate(bundles):
+        status, released = bundle.release(release_name, options=options, check=False, commit=False)
+
+        # Transmitting released repos changesets to remaining bundles
+        for rem in bundles[i+1:]:
+            rem.pull_clones(from_bundle=bundle, targets=released, update=True)
+
         if status:
+            bundle.release_abort() # any bundle can do it
             exit(status)
+
     bundle.release_commit(branch_name, release_name, options=options)
 
 def main():
