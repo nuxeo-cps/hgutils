@@ -82,7 +82,7 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
 
         if status:
             bundle.release_abort() # any bundle can do it
-            exit(status)
+            return status
 
     bundle.release_commit(branch_name, release_name, options=options)
 

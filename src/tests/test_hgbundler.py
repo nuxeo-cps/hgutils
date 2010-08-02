@@ -17,7 +17,8 @@
 # $Id$
 
 import os
-import logging
+import mercurial
+
 import unittest
 import tests
 from tests import TEST_DATA_PATH
@@ -70,6 +71,41 @@ class HgBundlerTestCase(unittest.TestCase):
         # process must be the same.
         descs = [bdl.getRepoDescriptorByTarget('ToRelease') for bdl in bundles]
         self.assertEquals(descs[0].tip(), descs[1].tip())
+
+    def test_multi_release_revert(self):
+        # here we release first the small bundle, and produce an error in the
+        # big one.
+
+        base_path = self.prepareMultiBundle('bundles',
+                                            ('bundle1.xml', 'bundle3.xml'))
+        bundles = [Bundle(os.path.join(base_path, b))
+                   for b in ('bundle1', 'bundle3')]
+        for bdl in bundles:
+            bdl.make_clones()
+
+        ui = mercurial.ui.ui()
+
+        # let's make some uncommited changes
+        # dont wanna mess with the three special files, though
+        clone = os.path.join(base_path, 'bundle1', 'AlreadyReleased')
+        f = open(os.path.join(clone, 'non-ignored'), 'w')
+        f.write("it's not even empty\n")
+        f.close()
+        repo = hg.repository(ui, clone)
+        repo.add(('non-ignored',))
+
+        # Now try and release:
+
+        status = release_multiple_bundles(('bundle3', 'bundle1','TEST-MULTI'),
+                                          base_path=base_path,
+                                          options=tests.Options())
+        self.assertNotEquals(status, 0)
+
+        # check that changes in first bundle have been reverted
+        bdl_repo = hg.repository(ui, os.path.join(base_path))
+        bdl_repo.changectx(None)
+        for x in bdl_repo.status():
+            self.assertEquals(x, [])
 
     def tearDown(self):
         rmr(self.tmpdir)

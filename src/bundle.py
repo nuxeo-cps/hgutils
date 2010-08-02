@@ -516,7 +516,15 @@ class Bundle(object):
     def release_abort(self):
         self.initBundleRepo()
         repo = self.bundle_repo
-        hg_commands.revert(repo.ui, all=True)
+        ctx = repo.changectx(None)
+        parents = ctx.parents()
+        if len(parents) != 1:
+            log.fatal("Could not revert repo at %s. Do it manually.",
+                      repo.root)
+        parent = parents[0].node()
+        # Letting this command guess where we want to revert can be
+        # hazardeous, esp. with yound repos as in unit tests
+        hg_commands.revert(repo.ui, repo, all=True, rev=parent, date=None)
 
     def release_commit(self, branch_name, release_name, options=None):
         """Does all the mercurial writes after manifest updates for release.
