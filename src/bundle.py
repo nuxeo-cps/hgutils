@@ -107,7 +107,7 @@ class Bundle(object):
             repo_path = _findrepo(self.bundle_dir)
             if repo_path is None:
                 raise RepoNotFoundError()
-            logger.info("Found mercurial repository at %s", repo_path)
+            logger.info("Found mercurial repository at %s", repo_path or '.')
             repo = self.bundle_repo = hg.repository(HG_UI, repo_path)
 
         if self.initial_node is None:
