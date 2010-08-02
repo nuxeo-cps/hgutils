@@ -338,7 +338,23 @@ class Bundle(object):
     def pull_clones(self, from_bundle=None, targets=(), update=False):
         """Perform a pull for targets from the given (local) bundle."""
 
-        raise NotImplementedError
+        logger.info("Pulling %s from %s", targets, from_bundle.bundle_dir)
+        for target in targets:
+            try:
+                our_desc = self.getRepoDescriptorByTarget(target)
+            except KeyError:
+                logger.debug("Target %s not present in %s", target,
+                             self.bundle_dir)
+                continue
+            our_repo = our_desc.getRepo()
+
+            from_path = from_bundle.getRepoDescriptorByTarget(target).local_path
+            logger.debug("Pulling %s from %s", our_desc.local_path_rel,
+                         from_path)
+            hg_commands.pull(HG_UI, our_repo, source=from_path)
+            if update:
+                logger.debug("Updating %s", our_desc.local_path_rel)
+                our_desc.update()
 
     def push_clones(self, from_bundle=None, targets=(), update=False):
         """Perform a push for targets to the given (local_ bundle."""

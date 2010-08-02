@@ -77,8 +77,8 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
         # same identifier (as shown by test_hgbundler),
         # so that this operation is actually not necessary
 
-        # for rem in bundles[i+1:]:
-        #    rem.pull_clones(from_bundle=bundle, targets=released, update=True)
+        for rem in bundles[i+1:]:
+            rem.pull_clones(from_bundle=bundle, targets=released, update=True)
 
         if status:
             bundle.release_abort() # any bundle can do it
