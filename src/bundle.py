@@ -44,6 +44,8 @@ BUNDLE_RELEASE_BRANCH_PREFIX='hgbundler-release-'
 
 logger = logging.getLogger('hgbundler.bundle')
 
+_default = object()
+
 class Server(object):
 
     @classmethod
@@ -334,7 +336,14 @@ class Bundle(object):
         return self.descriptors
 
     def pull_clones(self, from_bundle=None, targets=(), update=False):
-        """Perform a pull for targets from the given (local bundle)."""
+        """Perform a pull for targets from the given (local) bundle."""
+
+        raise NotImplementedError
+
+    def push_clones(self, from_bundle=None, targets=(), update=False):
+        """Perform a push for targets to the given (local_ bundle."""
+
+        raise NotImplementedError
 
     #
     # Command-line operations
@@ -368,26 +377,38 @@ class Bundle(object):
             if o:
                 logger.warn("%d changeset(s) not in %s", o, dest)
 
+    def getRepoDescriptorByTarget(self, target, default=_default):
+        found = [desc for desc in self.getRepoDescriptors()
+                 if desc.target == target]
+        if found:
+            return found[0]
+        if default is _default:
+            raise KeyError(target)
+        return default
+
     def release_clone(self, target, options=None):
         """Release one given clone
         """
-        for desc in self.getRepoDescriptors():
-            if desc.target == target:
-                try:
-                    desc.release(multiple_heads=options.multiple_heads,
-                                 release_again=options.release_again,
-                                 increment_major=options.increment_major)
-                    msg = "Release of %s (branch '%s') done. "
-                    if not getattr(options, 'auto_push', False):
-                        msg += "You may want to push "
-                        "(default is %s)" % desc.remote_url_push
-                    logger.warn(msg, desc.local_path_rel, desc.getName())
-                    return 0
-                except RepoReleaseError:
-                        return 1
+        try:
+            desc = self.getRepoDescriptorByTarget(target)
+        except KeyError:
+            logger.fatal("No clone with target '%s'" % target)
+            return 1
 
-        logger.fatal("No clone with target '%s'" % target)
-        return 1
+        try:
+            desc.release(multiple_heads=options.multiple_heads,
+                         release_again=options.release_again,
+                         increment_major=options.increment_major)
+            msg = "Release of %s (branch '%s') done. "
+            if not getattr(options, 'auto_push', False):
+                msg += "You may want to push "
+                "(default is %s)" % desc.remote_url_push
+            logger.warn(msg, desc.local_path_rel, desc.getName())
+            return 0
+        except RepoReleaseError:
+            logger.error("Could not release '%s'" % target)
+            return 1
+
 
     def writeManifest(self):
         """Dumps the XML tree in the manifest file."""

@@ -57,13 +57,19 @@ class HgBundlerTestCase(unittest.TestCase):
 
     def test_multi_release(self):
         base_path = self.prepareMultiBundle('bundles',
-                                            ('bundle1.xml', 'bundle2.xml'))
-        for b in ('bundle1', 'bundle2'):
-            bdl = Bundle(os.path.join(base_path, b))
+                                            ('bundle1.xml', 'bundle3.xml'))
+        bundles = [Bundle(os.path.join(base_path, b))
+                   for b in ('bundle1', 'bundle3')]
+        for bdl in bundles:
             bdl.make_clones()
 
-        release_multiple_bundles(('bundle1', 'bundle2','TEST-MULTI'),
+        release_multiple_bundles(('bundle1', 'bundle3','TEST-MULTI'),
                                  base_path=base_path, options=tests.Options())
+
+        # ToRelease is in both bundles. The changesets made during the release
+        # process must be the same.
+        descs = [bdl.getRepoDescriptorByTarget('ToRelease') for bdl in bundles]
+        self.assertEquals(descs[0].tip(), descs[1].tip())
 
     def tearDown(self):
         rmr(self.tmpdir)

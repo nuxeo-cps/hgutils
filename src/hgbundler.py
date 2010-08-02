@@ -73,8 +73,12 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
         status, released = bundle.release(release_name, options=options, check=False, commit=False)
 
         # Transmitting released repos changesets to remaining bundles
-        for rem in bundles[i+1:]:
-            rem.pull_clones(from_bundle=bundle, targets=released, update=True)
+        # Note: currently, in Mercurial two identical changesets get the
+        # same identifier (as shown by test_hgbundler),
+        # so that this operation is actually not necessary
+
+        # for rem in bundles[i+1:]:
+        #    rem.pull_clones(from_bundle=bundle, targets=released, update=True)
 
         if status:
             bundle.release_abort() # any bundle can do it
