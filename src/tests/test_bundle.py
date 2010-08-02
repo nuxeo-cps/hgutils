@@ -38,7 +38,7 @@ logger.setLevel(logging.INFO)
 
 class ServerTestCase(unittest.TestCase):
 
-    def xtest_dummy(self):
+    def test_dummy(self):
         server = Server(dict(name="truc", url='http'))
         self.assertEquals(server.name, 'truc')
 
@@ -64,11 +64,11 @@ class BundleTestCase(unittest.TestCase):
 
         return Bundle(bundle_path)
 
-    def xtest_make_clones(self):
+    def test_make_clones(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
         bundle.make_clones()
 
-    def xtest_release(self):
+    def test_release(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
         hg_init(bundle.bundle_dir)
 
@@ -81,7 +81,7 @@ class BundleTestCase(unittest.TestCase):
 
         bundle.release('TEST', options=tests.Options())
 
-    def xtest_repo_release_very_first(self):
+    def test_repo_release_very_first(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
         hg_init(bundle.bundle_dir)
 
@@ -109,7 +109,7 @@ class BundleTestCase(unittest.TestCase):
         # it got reverted
         self.assertEquals(open(mf_path, 'r').read(), original)
 
-    def xtest_out_with_sub(self):
+    def test_out_with_sub(self):
         bundle = self.prepareBundle('bundle', 'with_sub.xml')
         bundle.make_clones()
         l = set(f for f in os.listdir(bundle.bundle_dir)
