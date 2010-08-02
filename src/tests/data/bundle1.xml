@@ -9,7 +9,7 @@
        the tests much faster.
   -->
   <server name="hgbundler test repos on CPS mainline server"
-	  url="/Users/gracinet/hg-repos/hgutils-tests">
+	  url="http://hg.cps-cms.org/CPS/hgutils-tests">
     <branch path="NeverReleased" />
     <branch path="AlreadyReleased" />
     <branch path="ToRelease"/>
