@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<bundle>
+
+  <!-- If you need to run the tests with no connection,
+       you have to clone the sample repositories brefore hand
+       and change the URL below to point to a directory on your file system
+
+       This is also recommended for hgbundler developers because this makes
+       the tests much faster.
+  -->
+  <server name="hgbundler test repos on CPS mainline server"
+	  url="http://hg.cps-cms.org/CPS/hgutils-tests">
+    <branch path="NeverReleased" />
+    <branch path="AlreadyReleased" />
+    <branch path="ToRelease"/>
+  </server>
+
+</bundle>

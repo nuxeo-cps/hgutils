@@ -2,11 +2,11 @@ syntax: glob
 
 bin/buildout
 bin/hgbundler
+bin/test
 dist
 eggs
 parts
 var/
-data/
 develop-eggs
 docs/_build/
 .installed.cfg

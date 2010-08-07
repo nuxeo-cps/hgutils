@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<bundle>
+
+  <server name="hgbundler test repos on CPS mainline server"
+	  url="http://hg.cps-cms.org/CPS/hgutils-tests">
+    <branch path="ToRelease" />
+  </server>
+
+</bundle>
