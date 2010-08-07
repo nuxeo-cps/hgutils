@@ -6,8 +6,8 @@ except ImportError:
     from setuptools import setup, find_packages
 
 setup(
-    name='cpshgutils',
-    version='0.1',
+    name='hgbundler',
+    version='1.0',
     description='Mercurial utilities for CPS distribution',
     author='Georges Racinet',
     author_email='georges@racinet.fr',
