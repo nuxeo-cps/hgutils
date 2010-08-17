@@ -94,7 +94,8 @@ def main():
                        'clones-out': 'clones_out',
                        'release-clone': 'release_clone',
                        'release-bundle': 'release',
-                       'archive': 'archive'}
+                       'archive': 'archive',
+                       'bundle-changelog': 'changelog'}
     usage = "usage: %prog [options] " + '|'.join(
         global_commands.keys() + bundle_commands.keys())
     usage += """ [command args] \n
@@ -107,6 +108,7 @@ def main():
     release-bundle      <release name>                mandatory
     archive             <bundle tag> <output dir>     mandatory
     release-multiple    <bdl dir> [<bdl dir>]  <name> at least one bundle dir
+    bundle-changelog    <bundle tag1> <bundle tag2>   both mandatory
 """
     parser = OptionParser(usage=usage)
 
@@ -129,6 +131,8 @@ def main():
                       "changes that aren't bugfixes only")
     parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
                       help="Sets the logging level to DEBUG")
+    parser.add_option('-o', '--output', dest='output', metavar='FILE',
+                      help="Output file for analysis command (e.g bundle-changelog)")
 
     options, arguments = parser.parse_args()
     if not arguments:

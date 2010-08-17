@@ -25,6 +25,7 @@ import logging
 
 from mercurial import hg
 from mercurial import archival
+from mercurial import patch
 from mercurial.node import short as hg_hex
 from mercurial.node import nullid
 from mercurial import cmdutil as hg_cmdutil
@@ -38,9 +39,12 @@ from common import etree
 from common import _currentNodeRev
 from common import BranchNotFoundError
 
+from bundleman.utils import parseNuxeoHistory
+
 from releaser import Releaser
 from releaser import RepoReleaseError
 from releaser import parseNuxeoVersionFile
+
 from constants import (ASIDE_REPOS,
                        )
 
@@ -277,6 +281,24 @@ class RepoDescriptor(object):
     def getName(self):
         return 'no applicable name'
 
+    def changelog(self, rev1, rev2):
+        """Return parsed changelog between rev1 and rev2.
+
+        Usually, rev1 and rev2 would be tag names
+        """
+
+        repo = self.getRepo()
+        node1, node2 = hg_cmdutil.revpair(repo, (rev1, rev2))
+        opts = {}
+        m = hg_cmdutil.match(repo, pats=('path:HISTORY',))
+
+        diffopts = patch.diffopts(repo.ui)
+        diff = []
+        for l in patch.diff(repo, node1, node2, match=m, opts=diffopts):
+            diff.extend([line[1:] for line in l.split('\n')
+                         if line.startswith('+') and not line.startswith('++')])
+        return parseNuxeoHistory('\n'.join(diff))
+
 class Tag(RepoDescriptor):
 
     def releaseCheck(self, **kw):
@@ -504,3 +526,4 @@ class Branch(RepoDescriptor):
         o = repo.findoutgoing(other, force=opts.get('force'))
         ui.quiet = old_quiet
         return len(o), dest
+

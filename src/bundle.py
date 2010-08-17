@@ -19,12 +19,15 @@
 """Bundle and Server classes."""
 
 import os
+import sys
 import logging
 import popen2
 
 from mercurial import hg
 from mercurial.node import short as hg_hex
 from mercurial import commands as hg_commands
+
+from bundleman.utils import rst_title
 
 from common import etree
 from common import _findrepo, _currentNodeRev
@@ -291,8 +294,8 @@ class Bundle(object):
                 "\n include-bundles element kept for reference after " +
                 "performing the inclusion\n")
 
-    def getRepoDescriptors(self):
-        if self.descriptors is not None:
+    def getRepoDescriptors(self, store=True):
+        if self.descriptors is not None and store:
             return self.descriptors
 
         repos = {} # target -> repo
@@ -332,8 +335,10 @@ class Bundle(object):
                     else:
                         raise ValueError("Target name conflict: %s" % target)
 
-        self.descriptors = tuple(repos[target] for target in targets)
-        return self.descriptors
+        descriptors = tuple(repos[target] for target in targets)
+        if store:
+            self.descriptors = descriptors
+        return descriptors
 
     def pull_clones(self, from_bundle=None, targets=(), update=False):
         """Perform a pull for targets from the given (local) bundle."""
@@ -613,4 +618,112 @@ class Bundle(object):
         f.write('%s\nArchive produced by hgbundler from bundle tag %s\n' % (
                 tag_name, tag_name))
         f.close()
+
+    def changelog(self, tag1, tag2, options=None):
+        """Output a changelog between two tags."""
+
+        try:
+            self.initBundleRepo()
+        except RepoNotFoundError:
+            logger.critical("The current bundle is not part of a mercurial."
+                            "Repository. No tags, no archives.")
+            return 1
+        except NodeNotFoundError, e:
+            if str(e) == SEVERAL_PARENTS:
+                logger.critical("Current bundle state has several parents. "
+                                "uncommited merge?")
+                return 1
+            raise
+
+
+        descs = []
+        for tag in (tag1, tag2):
+            try:
+                self.updateToTag(tag)
+            except NodeNotFoundError:
+                logger.critical("Release (bundle tag) %s not found", tag)
+                return 1
+            bdl = Bundle(self.bundle_dir)
+            descs.append(bdl.getRepoDescriptors(store=False))
+
+        self.updateToInitialNode()
+
+        targets = [ set(desc.target for desc in descs[i]) for i in (0,1)]
+        new_targets = targets[1].difference(targets[0])
+        removed_targets = targets[0].difference(targets[1])
+        check_targets = targets[0].intersection(targets[1])
+        changed_targets = []
+
+        requires = []
+        features = []
+        bug_fixes = []
+        int_features = []
+
+        for target in check_targets:
+            ds = [None, None]
+            for i in (0,1):
+                for d in descs[i]:
+                    if d.target == target:
+                        ds[i] = d
+                        break
+                else:
+                    raise RuntimeError('Target not found: %r' % target)
+            if not isinstance(ds[0], Tag) or not isinstance(ds[1], Tag):
+                logger.info("target %s not managed by us.", target)
+                continue
+
+            ttags = [d.name for d in ds]
+            if ttags[0] == ttags[1]:
+                logger.debug("changelog: target %s unchanged", target)
+                continue
+
+            changed_targets.append((target, ttags[0], ttags[1]))
+
+            # now we ask the repo itself
+            req, feat, bug, int_feat = ds[1].changelog(*ttags)
+
+            int_features.extend(['[%s] %s'% (target, line)
+                                 for line in int_feat])
+            features.extend(['[%s] %s'% (target, line) for line in feat])
+            requires.extend(['[%s] %s'% (target, line) for line in req])
+            bug_fixes.extend(['[%s] %s'% (target, line) for line in bug])
+
+        output_buffer = []
+        output = output_buffer.append
+        output(rst_title("CHANGELOG between bundles tags %s and %s" %
+                         (tag1, tag2), 0))
+        output("New tag: %s\n" % tag2)
+        output("Old tag: %s\n" % tag1)
+        if new_targets:
+            output(rst_title('\nNew products', 2))
+            output('\n'.join(new_targets))
+        if removed_targets:
+            output(rst_title('\nRemoved products', 2))
+            output('\n'.join(removed_targets))
+        if changed_targets:
+            output(rst_title('\nChanged products', 2))
+            for prod in changed_targets:
+                output('* %s \t %s -> %s\n' % (prod[0], prod[1], prod[2]))
+
+        if requires:
+            output(rst_title('\nRequires', 3))
+            output('* ' + '\n* '.join(requires))
+        if features:
+            output(rst_title('\nFeatures', 3))
+            output('* ' + '\n* '.join(features))
+        if bug_fixes:
+            output(rst_title('\nBug fixes', 3))
+            output('* ' + '\n* '.join(bug_fixes))
+        if int_features:
+            output(rst_title('\nInternal features', 3))
+            output('* ' + '\n* '.join(int_features))
+        output('\n')
+
+        if options.output:
+            f = open(options.output, 'w')
+            f.writelines(output_buffer)
+            f.close()
+        else:
+            sys.stdout.writelines(output_buffer)
+        return 0
 
