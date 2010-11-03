@@ -4,8 +4,11 @@
 
 for dir in `ls`; do
   if [ -d "$dir"/.hg ]; then
-    echo "[$dir]"
-    (cd "$dir" && hg "$@")
+    res=`(cd "$dir" && hg "$@")`
+    if [ -n "$res" ]; then
+	echo "[$dir]"
+	echo "$res"
+    fi
   fi
 done
 
