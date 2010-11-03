@@ -29,6 +29,22 @@ from bundleman.utils import parseVersionString, parseNuxeoChanges
 
 logger = logging.getLogger('hgbundler.releaser')
 
+def gen_or_list_bool(gl):
+    """Same logic as bool(gl) except that it accepts lists and generators.
+
+    Consumes generator first object.
+    Use-case : mercurial.patch.diff returns list in 1.6.4 (Debian's 1.6.4-1)
+    """
+    if isinstance(gl, list):
+        return bool(gl)
+    try:
+        gl.next()
+    except StopIteration:
+        return False
+    return True
+
+
+
 class RepoReleaseError(Exception):
     pass
 
@@ -184,11 +200,9 @@ First release built by: %s at: %s
 
         node1 = children[0].node()
         logger.debug("Checking diff since changeset %s", hg_hex(node1))
-        it = mercurial.patch.diff(self.repo, node1=node1)
-        try:
-            it.next()
-        except StopIteration:
+        if not gen_or_list_bool(mercurial.patch.diff(self.repo, node1=node1)):
             return False
+
         logger.warn("Diff since last release (node %s) not empty.",
                     hg_hex(node))
         self.dumpLogSince(node1)
