@@ -21,6 +21,7 @@
 
 import os
 import re
+import sys
 import logging
 
 from mercurial import hg
@@ -30,6 +31,8 @@ from mercurial.node import short as hg_hex
 from mercurial.node import nullid
 from mercurial import cmdutil as hg_cmdutil
 CMDUTIL_REMOTEUI = 'remoteui' in dir(hg_cmdutil)
+HG_REMOTEUI = 'remoteui' in dir(hg)
+CMDUTIL_SETREMOTE = 'setremoteui' in dir(hg_cmdutil)
 
 import mercurial.patch
 import mercurial.util
@@ -513,17 +516,31 @@ class Branch(RepoDescriptor):
         old_quiet = ui.quiet
         ui.quiet = True
         limit = hg_cmdutil.loglimit(opts)
-        dest, revs, checkout = hg.parseurl(
+        parsed = hg.parseurl(
             ui.expandpath('default-push', 'default'), opts.get('rev'))
+        if len(parsed) == 2:
+            dest, (revs, checkout) = parsed
+        else:
+            dest, revs, checkout = parsed
+
         if revs:
             revs = [repo.lookup(rev) for rev in revs]
         if CMDUTIL_REMOTEUI:
             other = hg.repository(hg_cmdutil.remoteui(repo, opts), dest)
-        else:
+        elif CMDUTIL_SETREMOTE:
             hg_cmdutil.setremoteconfig(ui, opts)
             other = hg.repository(ui, dest)
+        elif HG_REMOTEUI:
+            other = hg.repository(hg.remoteui(repo, opts), dest)
+        else:
+            logger.critical("Problem on this Mercurial version")
+            sys.exit(1)
 
-        o = repo.findoutgoing(other, force=opts.get('force'))
+        if HG_REMOTEUI:
+            from mercurial import discovery
+            o = discovery.findoutgoing(repo, other, force=opts.get('force'))
+        else:
+            o = repo.findoutgoing(other, force=opts.get('force'))
         ui.quiet = old_quiet
         return len(o), dest
 
