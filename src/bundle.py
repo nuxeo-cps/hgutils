@@ -21,7 +21,7 @@
 import os
 import sys
 import logging
-import popen2
+from subprocess import Popen, PIPE
 
 from mercurial import hg
 from mercurial.node import short as hg_hex
@@ -436,15 +436,26 @@ class Bundle(object):
 
         # We go through tidy since pretty_print not present in all lxml
         # versions)
-        # TODO this is a rough way of doing, even with the pipe
 
-        tidy_out, tidy_in, tidy_err = popen2.popen3(
-            'tidy --wrap 79 --indent-attributes yes '
-            '--indent yes --indent-spaces 2 -asxml -xml ')
-        self.tree.write(tidy_in)
-        tidy_in.close()
-        formatted = tidy_out.read()
-        tidy_out.close()
+        print sys.version
+
+        tidy = Popen('tidy -xml -asxml -wrap 79 --indent yes '
+                     '--indent-attributes yes --indent-spaces 2',
+                     shell=True,   # for PATH lookup
+                     stdout=PIPE, stdin=PIPE, stderr=PIPE,)
+
+        tidy.stdin.write('<?xml version="1.0"?>')
+        self.tree.write(tidy.stdin)
+        tidy.stdin.close()
+        status = tidy.wait()
+        if status:
+            logger.critical(
+                "Error in tidy (exit status %d). stderr: %s", status,
+                tidy.stderr.read())
+            sys.exit(status)
+
+        formatted = tidy.stdout.read()
+        tidy.stdout.close()
 
         f = open(self.getManifestPath(), 'w')
         f.write(formatted)
