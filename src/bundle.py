@@ -437,8 +437,6 @@ class Bundle(object):
         # We go through tidy since pretty_print not present in all lxml
         # versions)
 
-        print sys.version
-
         tidy = Popen('tidy -xml -asxml -wrap 79 --indent yes '
                      '--indent-attributes yes --indent-spaces 2',
                      shell=True,   # for PATH lookup
@@ -485,18 +483,20 @@ class Bundle(object):
 
         return branch_name
 
-    def release(self, release_name, check=True, commit=True, options=None):
+    def release(self, release_name, check=True, commit=True, options=None,
+                list_released=False):
         """Release the whole bundle.
 
-        Return status, list of released clones.
-        Return the list of released targets (actually in this implementation,
-        this is the list of targets that get updated in the manifest file).
+        Return status or (status, list of released targets) according to
+        the 'list_released' kwarg.
+        In this implementation, the list of released targets is the list of
+        those that get updated in the manifest file.
         """
 
         if check:
             branch_name = self.release_repo_check(release_name, options=options)
             if branch_name is None:
-                return 1, ()
+                return list_released and (1, ()) or 1
 
         new_tags = {}
         # Release of all repos
@@ -512,7 +512,7 @@ class Bundle(object):
                     multiple_heads=options.multiple_heads,
                     increment_major=options.increment_major)
             except RepoReleaseError:
-                return 1, new_tags.keys()
+                return list_released and (1, new_tags.keys()) or 1
 
         # update xml tree
         known_targets = set(desc.target for desc in descriptors)
@@ -543,7 +543,7 @@ class Bundle(object):
         if commit:
             self.release_commit(branch_name, release_name, options=options)
 
-        return 0, new_tags.keys()
+        return list_released and (0, new_tags.keys()) or 0
 
     def release_abort(self):
         self.initBundleRepo()

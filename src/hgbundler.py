@@ -70,7 +70,9 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
     # (for commit or abort)
     branch_name = bundles[0].release_repo_check(release_name, options=options)
     for i, bundle in enumerate(bundles):
-        status, released = bundle.release(release_name, options=options, check=False, commit=False)
+        status, released = bundle.release(release_name, options=options,
+                                          check=False, commit=False,
+                                          list_released=True)
 
         # Transmitting released repos changesets to remaining bundles
         # Note: currently, in Mercurial two identical changesets get the
