@@ -129,8 +129,8 @@ def main():
                       help="Allow releasing again clones")
     parser.add_option('--increment-major',
                       action='store_true',
-                      help="Increment major version numbers in case of "
-                      "changes that aren't bugfixes only")
+                      help="Increment the most significatn version number. "
+                      " For 'release-clone' command only.")
     parser.add_option('-v', '--verbose', action='store_true', dest='verbose',
                       help="Sets the logging level to DEBUG")
     parser.add_option('-o', '--output', dest='output', metavar='FILE',
@@ -145,6 +145,10 @@ def main():
         logger.setLevel(logging.DEBUG)
 
     command = arguments[0]
+    if options.increment_major and command != 'release-clone':
+        parser.error(
+            "The selected options apply to the release-clone command only")
+
     meth = global_commands.get(command)
     if meth is not None:
         status = meth(arguments[1:], options=options)
