@@ -73,6 +73,19 @@ def make_clone(url, target_path):
     logger.debug(cmd)
     os.system(cmd)
 
+def repo_add(repo, fnames):
+    """Add files to the given hg repository.
+
+    This method to improve hg version independence.
+    """
+    try:
+        meth = repo.add
+    except AttributeError:
+        meth = repo[None].add
+
+    return meth(fnames)
+
+
 
 class RepoDescriptor(object):
 
@@ -479,13 +492,13 @@ class Branch(RepoDescriptor):
                         name, self.local_path_rel)
             releaser.updateVersionFiles()
             if releaser.initial:
-                self.getRepo().add(('VERSION', 'HISTORY'))
+                repo_add(self.getRepo(), ('VERSION', 'HISTORY'))
             self.getRepo().commit(
                 text="hgbundler prepared version files for release")
             tag_str = releaser.tag()
             releaser.initChangesFile()
             if releaser.initial:
-                self.getRepo().add(('CHANGES',))
+                repo_add(self.getRepo(), ('CHANGES',))
             self.getRepo().commit(text="hgbundler init new CHANGES file")
         else:
             tag_str = releaser.version_str

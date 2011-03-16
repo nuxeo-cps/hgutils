@@ -29,6 +29,7 @@ from mercurial import commands as hg_commands
 from bundle import Server, Bundle
 from bundle import MANIFEST_FILE
 from repodescriptor import HG_UI
+from repodescriptor import repo_add
 from hgbundler import release_multiple_bundles
 
 class HgBundlerTestCase(unittest.TestCase):
@@ -92,7 +93,7 @@ class HgBundlerTestCase(unittest.TestCase):
         f.write("it's not even empty\n")
         f.close()
         repo = hg.repository(ui, clone)
-        repo.add(('non-ignored',))
+        repo_add(repo, ('non-ignored',))
 
         # Now try and release:
 
