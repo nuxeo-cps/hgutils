@@ -215,8 +215,8 @@ First release built by: %s at: %s
             current_node = current_ctx.parents()[0].node()
 
         noderange = hg_hex(node), hg_hex(current_node)
-        logger.info("Running hg log since %s on branch '%s'.",
-                    hg_hex(node), self.branch)
+        logger.info("Running hg log on %s since %s on branch '%s'.",
+                    self.desc.local_path_rel, hg_hex(node), self.branch)
         hg_commands.log(self.repo.ui, self.repo,
                         rev=[':'.join(noderange)],
                         only_branch=[self.branch],
