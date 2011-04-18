@@ -388,12 +388,22 @@ class Bundle(object):
             desc.updateUrls()
 
     def clones_list(self, options=None):
+
+        paths = [] # to avoid duplicates while keeping ordering
+        def add_path(desc):
+            path = desc.local_path_rel
+            if path not in paths:
+                paths.append(path)
+
         for s in self.getSubBundles():
             for desc in s['descriptors']:
-                print desc.local_path_rel
+                add_path(desc)
 
         for desc in self.getRepoDescriptors():
-            print desc.local_path_rel
+            add_path(desc)
+
+        for path in paths:
+            print path
 
     def clones_out(self, options=None):
         for s in self.getSubBundles():
