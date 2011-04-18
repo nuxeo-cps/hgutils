@@ -387,6 +387,14 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             desc.updateUrls()
 
+    def clones_list(self, options=None):
+        for s in self.getSubBundles():
+            for desc in s['descriptors']:
+                print desc.local_path_rel
+
+        for desc in self.getRepoDescriptors():
+            print desc.local_path_rel
+
     def clones_out(self, options=None):
         for s in self.getSubBundles():
             for desc in s['descriptors']:

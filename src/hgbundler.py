@@ -91,7 +91,10 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
 def main():
     global_commands = {'release-multiple': release_multiple_bundles}
     bundle_commands = {'make-clones': 'make_clones',
+                       'clones-make': 'make_clones',
                        'update-clones': 'update_clones',
+                       'clones-update' : 'update_clones',
+                       'clones-list': 'clones_list',
                        'clones-refresh-url': 'clones_refresh_url',
                        'clones-out': 'clones_out',
                        'release-clone': 'release_clone',

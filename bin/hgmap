@@ -2,7 +2,7 @@
 # inspired from Nuxeo's hgf
 # simple mapper on the hg repos found in cwd
 
-for dir in `ls`; do
+for dir in `hgbundler clones-list 2> /dev/null`; do
   if [ -d "$dir"/.hg ]; then
     res=`(cd "$dir" && hg "$@")`
     if [ -n "$res" ]; then

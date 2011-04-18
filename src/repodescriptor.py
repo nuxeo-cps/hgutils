@@ -53,7 +53,25 @@ from constants import (ASIDE_REPOS,
 
 logger = logging.getLogger('hgbundler.repodescriptor')
 
-HG_UI = mercurial.ui.ui()
+class LoggerUi(mercurial.ui.ui):
+    """Subclass to indirect mercurial output through a logger."""
+
+    def __init__(self, out_logger, **kw):
+        mercurial.ui.ui.__init__(self, **kw)
+        self.out_logger = out_logger
+
+    def copy(self):
+        return self.__class__(self.out_logger)
+
+    def write(self, *args, **opts):
+        if self._buffers:
+            self._buffers[-1].extend([str(a) for a in args])
+        else:
+            logger = self.out_logger
+            for a in args:
+                logger.info(str(a))
+
+HG_UI = LoggerUi(logger)
 
 
 LOCAL_CHANGES = 'local changes'
