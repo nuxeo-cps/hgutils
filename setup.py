@@ -7,7 +7,7 @@ except ImportError:
 
 setup(
     name='hgbundler',
-    version='1.0',
+    version='1.1.1',
     description='Mercurial utilities for CPS distribution',
     author='Georges Racinet',
     author_email='georges@racinet.fr',
