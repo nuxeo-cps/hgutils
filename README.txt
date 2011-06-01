@@ -311,4 +311,8 @@ Project Creation
 
 
 
+.. Local Variables:
+.. mode: rst
+.. End:
+.. vim: set filetype=rst:
 
