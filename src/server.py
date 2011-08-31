@@ -15,3 +15,35 @@
 # 02111-1307, USA.
 #
 # $Id$
+
+import os
+from lxml import etree
+
+SERVERS_FILE = "BUNDLE_SERVERS.xml"
+
+known_servers = {}
+
+class ServerTemplate(object):
+    """A server that can be re-used.
+
+    Typically loaded from an auxiliary, not versioned file."""
+
+    templates = {}
+
+    def __init__(self, attrib):
+        try:
+            self.id = attrib.pop('id')
+        except KeyError:
+            logger.error("Missing id in template %s", attrib.get('name'))
+            raise
+
+        self.attrib = attrib # simpler to keep them for later use
+
+if os.path.isfile(SERVERS_FILE):
+    tree = etree.parse(SERVERS_FILE)
+    root = tree.getroot()
+    for child in root:
+        if child.tag != 'server':
+            continue
+        s = ServerTemplate(child.attrib)
+        known_servers[s.id] = s

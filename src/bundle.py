@@ -34,6 +34,7 @@ from common import _findrepo, _currentNodeRev
 from common import NodeNotFoundError, RepoNotFoundError
 
 from releaser import RepoReleaseError
+from server import known_servers
 from repodescriptor import Branch, Tag
 from repodescriptor import HG_UI
 from repodescriptor import SEVERAL_PARENTS
@@ -58,6 +59,17 @@ class Server(object):
         return url.endswith('/') and url[:-1] or url
 
     def __init__(self, attrib):
+        ref = attrib.get('ref')
+        if ref is not None:
+            try:
+                new_attrib = dict(known_servers[ref].attrib)
+            except KeyError:
+                logger.fatal("Unknown predefined server %r", ref)
+                sys.exit(1)
+
+            new_attrib.update(attrib)
+            attrib = new_attrib
+
         self.name = attrib.get('name')
         self.from_include = attrib.get('from-include',
                                        '').strip().lower() == 'true'
