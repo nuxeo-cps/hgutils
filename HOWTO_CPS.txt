@@ -69,3 +69,10 @@ Put all the clones at the tip of the branch specified in manifest
 $ hgbundler update-clones
 
 Beware of local changes and the like, as usual.
+
+
+.. Local Variables:
+.. mode: rst
+.. End:
+.. vim: set filetype=rst:
+
