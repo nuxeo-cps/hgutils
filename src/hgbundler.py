@@ -138,6 +138,10 @@ def main():
                       help="Sets the logging level to DEBUG")
     parser.add_option('-o', '--output', dest='output', metavar='FILE',
                       help="Output file for analysis command (e.g bundle-changelog)")
+    parser.add_option('--branches-only', action='store_true',
+                      help="Have clones-list list live branches only")
+    parser.add_option('--tags-only', action='store_true',
+                      help="Have clones-list frozen tags only")
 
     options, arguments = parser.parse_args()
     if not arguments:
@@ -151,6 +155,10 @@ def main():
     if options.increment_major and command != 'release-clone':
         parser.error(
             "The selected options apply to the release-clone command only")
+    if (options.tags_only or options.branches_only) and \
+            command != 'clones-list':
+        parser.error(
+            "The selected options apply to the clones-list command only")
 
     meth = global_commands.get(command)
     if meth is not None:

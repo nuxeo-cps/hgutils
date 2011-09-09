@@ -400,9 +400,15 @@ class Bundle(object):
             desc.updateUrls()
 
     def clones_list(self, options=None):
+        tags_only = options.tags_only
+        branches_only = options.branches_only
 
         paths = [] # to avoid duplicates while keeping ordering
         def add_path(desc):
+            if branches_only and not isinstance(desc, Branch):
+                return
+            if tags_only and not isinstance(desc, Tag):
+                return
             path = desc.local_path_rel
             if path not in paths:
                 paths.append(path)

@@ -1,0 +1,15 @@
+#!/bin/sh
+# inspired from Nuxeo's hgf
+# simple mapper on the hg repos found in cwd
+
+HGBUNDLER=`dirname $0`/hgbundler
+for dir in `hgbundler clones-list --branches-only 2> /dev/null`; do
+  if [ -d "$dir"/.hg ]; then
+    res=`(cd "$dir" && hg "$@")`
+    if [ -n "$res" ]; then
+	echo "[$dir]"
+	echo "$res"
+    fi
+  fi
+done
+
