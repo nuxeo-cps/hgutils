@@ -39,3 +39,9 @@ put them on your PATH somehow.
 System-wide
 -----------
 TODO
+
+.. Local Variables:
+.. mode: rst
+.. End:
+.. vim: set filetype=rst:
+
