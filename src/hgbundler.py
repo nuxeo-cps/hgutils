@@ -74,6 +74,10 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
                                           check=False, commit=False,
                                           list_released=True)
 
+        if status:
+            bundle.release_abort() # any bundle can do it
+            return status
+
         # Transmitting released repos changesets to remaining bundles
         # Note: currently, in Mercurial two identical changesets get the
         # same identifier (as shown by test_hgbundler),
@@ -81,10 +85,6 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
 
         for rem in bundles[i+1:]:
             rem.pull_clones(from_bundle=bundle, targets=released, update=True)
-
-        if status:
-            bundle.release_abort() # any bundle can do it
-            return status
 
     bundle.release_commit(branch_name, release_name, options=options)
 
