@@ -8,65 +8,68 @@ starting from scratch
 
 Retrieving hgutils
 ------------------
-
+::
  $ hg clone https://hg.cps-cms.org/CPS/hgutils
  $ less hgutils/INSTALL.txt # learn about dependencies and install procedure
 
 Install
 -------
-
+::
  $ cd hgutils
  $ python bootstrap.py
  $ bin/buildout
 
-Now put the executables on the path. For instance like this:
+Now put the executables on the path. For instance like this::
  $ sudo ln -s $CWD/bin/hgbundler $CWD/bin/hgmap /usr/local/bin
 
 Getting CPS-3-full
 ------------------
-$ cd /some/useful/path
-$ hg clone https://hg.cps-cms.org/bundles
-$ cd bundles/CPS-3-full
-$ hgbundler make-clones
+::
+ $ cd /some/useful/path
+ $ hg clone https://hg.cps-cms.org/bundles
+ $ cd bundles/CPS-3-full
+ $ hgbundler make-clones
 
 Getting the unicode branch from scratch
 ---------------------------------------
-$ cd /some/path/unicode
-$ hg clone https://hg.cps-cms.org/bundles
-$ cd bundles/CPS-3-full
-$ hg up unicode
-$ hgbundler make-clones
+::
+ $ cd /some/path/unicode
+ $ hg clone https://hg.cps-cms.org/bundles
+ $ cd bundles/CPS-3-full
+ $ hg up unicode
+ $ hgbundler make-clones
 
 Switching the default bundle to unicode
 ---------------------------------------
 (Assuming we are inside the bundle already)
 
-$ hg up unicode
+::
+ $ hg up unicode
 
-grab the missing clones:
-$ hgbundler make-clones
+grab the missing clones::
+ $ hgbundler make-clones
 
-update existing clones to the correct branch:
-$ hgbundler update-clones
+update existing clones to the correct branch::
+ $ hgbundler update-clones
 
 Updating an existing bundle
 ---------------------------
 (Again assuming we are inside the bundle already)
 
-Pull on existing clones:
-$ hgmap pull
+Pull on existing clones::
+ $ hgmap pull
 
-Also the technical area for clones in which only a subdir is being used:
-$ cd .hgbundler; hgmap pull; cd..
+Also the technical area for clones in which only a subdir is being used::
+ $ cd .hgbundler; hgmap pull; cd..
 
-Update of the bundle manifest:
-$ hg pull -u
+Update of the bundle manifest::
+ $ hg pull -u
 
-Get new clones
-$ hgbundler make-clones
+Get new clones::
+ $ hgbundler make-clones
 
-Put all the clones at the tip of the branch specified in manifest
-$ hgbundler update-clones
+Put all the clones at the tip of the branch specified in manifest::
+ $ hgbundler update-clones
 
 Beware of local changes and the like, as usual.
 
