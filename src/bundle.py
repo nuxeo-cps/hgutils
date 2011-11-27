@@ -432,7 +432,7 @@ class Bundle(object):
             logger.debug('Performing outgoing for %s', desc.local_path_rel)
             o, dest = desc.outgoing()
             if o:
-                logger.warn("%d changeset(s) not in %s", o, dest)
+                logger.warn("%d changeset subtree(s) not in %s", o, dest)
 
     def getRepoDescriptorByTarget(self, target, default=_default):
         found = [desc for desc in self.getRepoDescriptors()
