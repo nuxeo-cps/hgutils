@@ -36,6 +36,54 @@ notably hgbundler, strip_reorg.sh
 They usually work on the current directory, so you'll have to
 put them on your PATH somehow.
 
+Buildout sandbox in a virtualenv
+--------------------------------
+
+.. _virtualenv: http://www.virtualenv.org/en/latest/index.html
+
+Normally one should have no problem building hgutils with the buildout sandbox
+procedure depicted above.
+
+But there appears to be some sandbox violation problems when building in some
+cases not clearly identified yet. The following happens for example on Debian
+GNU/Linux 6.0 (squeeze)::
+
+ ~/hg.cps-cms.org/hgutils$ python bootstrap.py
+ install_dir /tmp/tmpasm532
+ Getting distribution for 'distribute==0.6.16'.
+ install_dir ~/hg.cps-cms.org/hgutils/eggs/tmpzPYIR_
+ Before install bootstrap.
+ Scanning installed packages
+ Setuptools installation detected at /usr/lib/python2.6/dist-packages
+ Non-egg installation
+ Removing elements out of the way...
+ Already patched.
+ /usr/lib/python2.6/dist-packages/setuptools.egg-info already patched.
+ After install bootstrap.
+ Creating
+ /usr/local/lib/python2.6/dist-packages/setuptools-0.6c11-py2.6.egg-info
+ error:
+ /usr/local/lib/python2.6/dist-packages/setuptools-0.6c11-py2.6.egg-info:
+ Permission denied
+ An error occurred when trying to install distribute 0.6.16. Look above
+ this message for any errors that were output by easy_install.
+ While:
+   Bootstrapping.
+     Getting distribution for 'distribute==0.6.16'.
+     Error: Couldn't install: distribute 0.6.16
+
+The workaround is to instal hgutils in a virtualenv_ ::
+
+  ~/hg.cps-cms.org/hgutils$ virtualenv ~/hg.cps-cms.org/hgutils/virtualenv
+  ~/hg.cps-cms.org/hgutils$ source virtualenv/bin/activate
+
+  (virtualenv):~/hg.cps-cms.org/hgutils$ python bootstrap.py
+  (virtualenv):~/hg.cps-cms.org/hgutils$ bin/buildout
+
+When the build is done, it's not needed to bother of the virtualenv anymore when
+running the executables in hgutils. The virtualenv is only useful for the build
+time.
+
 System-wide
 -----------
 TODO
