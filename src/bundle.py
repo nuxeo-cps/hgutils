@@ -399,9 +399,22 @@ class Bundle(object):
         for desc in self.getRepoDescriptors():
             desc.updateUrls()
 
-    def clones_list(self, options=None):
-        tags_only = options.tags_only
-        branches_only = options.branches_only
+    def clones_list(self, options=None, outfile=sys.stdout):
+        """List all the clones, according to options.
+
+        Recognized options (as attributes of the options object):
+          - tags_only: only tags will be listed
+          - branches_only: only tags will be listed
+          - attributes_filter: a dict
+                     (name of XML attribute -> expected values)
+        """
+
+        tags_only = getattr(options, 'tags_only', False)
+        branches_only = getattr(options, 'branches_only', False)
+        toplevel_only = getattr(options, 'toplevel_only', False)
+        attr_filter = getattr(options, 'attributes_filter', {})
+        if attr_filter is None:
+            attr_filter = {}
 
         paths = [] # to avoid duplicates while keeping ordering
         def add_path(desc):
@@ -409,6 +422,12 @@ class Bundle(object):
                 return
             if tags_only and not isinstance(desc, Tag):
                 return
+            if toplevel_only and desc.from_include:
+                return
+            for attr, values in attr_filter.items():
+                if desc.xml_attrs.get(attr) not in values:
+                    return
+
             path = desc.local_path_rel
             if path not in paths:
                 paths.append(path)
@@ -421,7 +440,7 @@ class Bundle(object):
             add_path(desc)
 
         for path in paths:
-            print path
+            outfile.write(path + os.linesep)
 
     def clones_out(self, options=None):
         for s in self.getSubBundles():
@@ -565,7 +584,7 @@ class Bundle(object):
                 if target not in known_targets:
                     raise ValueError(
                         "Released target name %s unknown before hand" % target)
-                new_tag = new_tags[target]
+                new_tag = new_tags.get(target)
                 if new_tag is None:
                     # not relased, but not an error
                     continue

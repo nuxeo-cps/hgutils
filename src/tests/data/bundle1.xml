@@ -11,8 +11,8 @@
   <server name="hgbundler test repos on CPS mainline server"
 	  url="http://hg.cps-cms.org/CPS/hgutils-tests">
     <branch path="NeverReleased" />
-    <branch path="AlreadyReleased" />
-    <branch path="ToRelease"/>
+    <branch path="AlreadyReleased" testing="yes"/>
+    <branch path="ToRelease" testing="continuous"/>
   </server>
 
 </bundle>

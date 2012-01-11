@@ -88,6 +88,17 @@ def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
 
     bundle.release_commit(branch_name, release_name, options=options)
 
+def attr_filter_callback(option, opt, value, parser):
+    """Treatment of the attributes-filter option."""
+    filters = getattr(parser.values, option.dest, None)
+    if filters is None:
+        filters = {}
+        setattr(parser.values, option.dest, filters)
+
+    k, v = (x.strip() for x in value.split(':'))
+    admissible = filters.setdefault(k, [])
+    admissible.append(v)
+
 def main():
     global_commands = {'release-multiple': release_multiple_bundles}
     bundle_commands = {'make-clones': 'make_clones',
@@ -142,6 +153,17 @@ def main():
                       help="Have clones-list list live branches only")
     parser.add_option('--tags-only', action='store_true',
                       help="Have clones-list frozen tags only")
+    parser.add_option('--toplevel-only', action='store_true',
+                      help="Have clones-list top level (not included) clones "
+                      "only")
+    parser.add_option('--attributes-filter', action='callback',
+                      callback=attr_filter_callback,
+                      dest='attributes_filter', type="str",
+                      help="Add an additional filter on XML attributes to "
+                      "for clones-list command. Each filter takes the form "
+                      "ATTRIBUTE=VALUE. Add a filter several times on "
+                      "the same attribute, to build a list of accepted values."
+                      )
 
     options, arguments = parser.parse_args()
     if not arguments:
@@ -155,8 +177,9 @@ def main():
     if options.increment_major and command != 'release-clone':
         parser.error(
             "The selected options apply to the release-clone command only")
-    if (options.tags_only or options.branches_only) and \
-            command != 'clones-list':
+    if (options.tags_only or options.branches_only
+        or options.attributes_filter or options.toplevel_only
+        ) and command != 'clones-list':
         parser.error(
             "The selected options apply to the clones-list command only")
 
@@ -175,3 +198,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+7

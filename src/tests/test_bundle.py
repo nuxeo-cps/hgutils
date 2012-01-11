@@ -23,6 +23,7 @@ import tests
 from tests import TEST_DATA_PATH
 from tests import rmr, hg_init, un_hg
 
+from StringIO import StringIO
 from mercurial import hg
 from mercurial import commands as hg_commands
 from bundle import Server, Bundle
@@ -41,6 +42,13 @@ class ServerTestCase(unittest.TestCase):
     def test_dummy(self):
         server = Server(dict(name="truc", url='http'))
         self.assertEquals(server.name, 'truc')
+
+class Options(object):
+    """Simulate optparse options object."""
+
+    def __init__(self, **kw):
+        for k, v in kw.items():
+            setattr(self, k, v)
 
 class BundleTestCase(unittest.TestCase):
 
@@ -67,6 +75,36 @@ class BundleTestCase(unittest.TestCase):
     def test_make_clones(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
         bundle.make_clones()
+
+    def test_clones_list(self):
+        bundle = self.prepareBundle('bundle', 'bundle1.xml')
+        out = StringIO()
+        listed = bundle.clones_list(outfile=out)
+        self.assertEquals(out.getvalue().split(),
+                          ['NeverReleased', 'AlreadyReleased', 'ToRelease'])
+
+        # in case of true optparse Options, we'd have a value, and it'd be None
+        out = StringIO()
+        options = Options(attributes_filter=None)
+        listed = bundle.clones_list(outfile=out, options=options)
+        self.assertEquals(out.getvalue().split(),
+                          ['NeverReleased', 'AlreadyReleased', 'ToRelease'])
+
+        out = StringIO()
+        options = Options(tags_only=True)
+        listed = bundle.clones_list(options=options, outfile=out)
+        self.assertEquals(out.getvalue().split(), [])
+
+        out = StringIO()
+        options = Options(attributes_filter=dict(testing=("continuous",)))
+        listed = bundle.clones_list(options=options, outfile=out)
+        self.assertEquals(out.getvalue().split(), ['ToRelease'])
+
+        out = StringIO()
+        options = Options(attributes_filter=dict(testing=("continuous", "yes")))
+        listed = bundle.clones_list(options=options, outfile=out)
+        self.assertEquals(out.getvalue().split(),
+                          ['AlreadyReleased', 'ToRelease'])
 
     def test_release(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')
