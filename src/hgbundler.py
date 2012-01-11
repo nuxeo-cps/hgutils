@@ -32,6 +32,7 @@ logger.setLevel(logging.INFO)
 
 from bundle import Bundle
 from common import _findrepo
+from server import read_servers
 
 def release_multiple_bundles(args, base_path='', options=None, opt_parser=None):
     """Release several bundles at once.
@@ -188,6 +189,7 @@ def main():
         status = meth(arguments[1:], options=options)
         sys.exit(status)
 
+    read_servers(from_dir=options.bundle_dir)
     bundle = Bundle(options.bundle_dir)
     meth = bundle_commands.get(command)
     if meth is None:

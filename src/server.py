@@ -39,8 +39,11 @@ class ServerTemplate(object):
 
         self.attrib = attrib # simpler to keep them for later use
 
-if os.path.isfile(SERVERS_FILE):
-    tree = etree.parse(SERVERS_FILE)
+def read_servers(from_dir=''):
+    path = os.path.join(from_dir, SERVERS_FILE)
+    if not os.path.isfile(path):
+        return
+    tree = etree.parse(path)
     root = tree.getroot()
     for child in root:
         if child.tag != 'server':
