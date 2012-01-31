@@ -151,6 +151,15 @@ This avoids making useless hgbundler commands for ``push``, ``pull``, ``update``
 
 Also, this way, destructive operations like push/pull are explicit.
 
+hgbranchmap <hg command> <arguments>
+------------------------------------
+Same as hgmap, but operates on <branch> clones.
+
+hgbundler clones-list
+---------------------
+Lists all the declared clones, filtered according to options.
+Used by hgmap and hgbranchmap.
+
 hgbundler make-clones
 ---------------------
 
