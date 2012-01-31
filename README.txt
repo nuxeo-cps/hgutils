@@ -210,22 +210,18 @@ inside one:
 
 Pushing the bundle to a reference repo is to be made manually afterwards.
 
+hgbundler release-multiple <bundle_1> [<bundle_n>]* tag
+-------------------------------------------------------
+Same as release-bundle, but for the case where several bundles are versionned
+in a single mercurial repo. This is used to release CPS-3-base, CPS-3 and 
+CPS-3-full at once. 
 
-Question: commands semantics in the case where there are several
-bundles in a single repo (case for CPS-3-full, CPS-3-base, etc). Two
-cases:
-  - release each bundle
-  - release just one
-For now, the command releases just one, meaning that we have a problem
-with tag unicity. This problem can be postponed. In the meanwhile, use
-different tags to release each bundle, and for the final coordinated
-release, make a new branch, merge all the release branches in that one
-and set a global tag manually. Alternative solution : implement a
-no-bundle tag.
+This releases all the clones of all bundles in a consistent way, by pushing
+changesets between clones living in different bundles.
+At the end, a single tag is set on the common repository for the bundles
 
 hgbundler release-clone <clone name>
 ------------------------------------
-*This is still experimental*
 
 Uses the same rules as ``bm-product`` to issue a tag for the given
 clone. Does a few checkings to avoid accidents:
