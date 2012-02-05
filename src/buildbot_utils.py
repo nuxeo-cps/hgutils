@@ -12,7 +12,7 @@ class BundleChangeFilter(ChangeFilter):
 
     change_basedir = '' # the base directory to remove from change dir
 
-    update_interval = 600
+    update_interval = 30
 
     def __init__(self, repourl, path_in_repo='', branch='default'):
         # a bit dirty, but chances of collision are so low
@@ -48,24 +48,26 @@ class BundleChangeFilter(ChangeFilter):
         os.chdir(self.bundle_dir)
         os.system('hg up %s' % self.bundle_branch)
         os.chdir(cwd)
+
+        self.extract_descriptors()
         self.latest_update = now
 
-    def filter_change(self, change):
-        self.update()
+    def extract_descriptors(self):
         bundle = Bundle(self.bundle_dir)
         descriptors = bundle.getRepoDescriptors()
         for b in bundle.getSubBundles():
             descriptors.extend(b['descriptors'])
-        for desc in descriptors:
+        self.descriptors = [d for d in descriptors if not isinstance(d, Tag)]
+
+    def filter_change(self, change):
+        self.update()
+        for desc in self.descriptors:
             if self.match_change_clone(change, desc):
                 print "%s triggered %r" % (change, self)
                 return True
 
     def match_change_clone(self, change, clone):
         """True if given change matches the given clone descriptor."""
-        if isinstance(clone, Tag):
-            return False
-
         change_path = change.repository
         if not change_path.startswith(self.change_basedir):
             return False
