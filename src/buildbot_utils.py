@@ -1,4 +1,5 @@
 import os
+import time
 import urlparse
 
 from buildbot.changes.filter import ChangeFilter
@@ -11,6 +12,8 @@ class BundleChangeFilter(ChangeFilter):
 
     change_basedir = '' # the base directory to remove from change dir
 
+    update_interval = 600
+
     def __init__(self, repourl, path_in_repo='', branch='default'):
         # a bit dirty, but chances of collision are so low
         self.clone_path = os.path.join(self.basedir, 'hgbundler',
@@ -22,6 +25,8 @@ class BundleChangeFilter(ChangeFilter):
         self.bundle_branch = branch
         self.bundle_url = repourl
         self.bundle_subpath = path_in_repo
+        self.latest_update = 0
+        self.update()
 
     def __repr__(self):
         return 'BundleChangeFilter(%r, branch=%r, path_in_repo=%r)' % (
@@ -29,6 +34,10 @@ class BundleChangeFilter(ChangeFilter):
 
     def update(self):
         """Update or create the bundle repository."""
+        now = time.time()
+        if now - self.latest_update < self.update_interval:
+            return
+
         cwd = os.getcwd()
         if not os.path.isdir(self.bundle_dir):
             os.system('hg clone %s %s' % (self.bundle_url, self.clone_path))
@@ -39,6 +48,7 @@ class BundleChangeFilter(ChangeFilter):
         os.chdir(self.bundle_dir)
         os.system('hg up %s' % self.bundle_branch)
         os.chdir(cwd)
+        self.latest_update = now
 
     def filter_change(self, change):
         self.update()
