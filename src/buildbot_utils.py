@@ -7,7 +7,7 @@ from repodescriptor import Tag
 
 class BundleChangeFilter(ChangeFilter):
 
-    basedir = '' # Master basdir, filled in from master.cfg
+    basedir = '' # Master base directory, filled in from master.cfg
 
     change_basedir = '' # the base directory to remove from change dir
 
@@ -28,19 +28,16 @@ class BundleChangeFilter(ChangeFilter):
             self.bundle_url, self.bundle_branch, self.bundle_subpath)
 
     def update(self):
-        # GR proof of concept only, actual path will be a pain, to use the
-        # right hg the only way is to import and call actual API. Also, use of
-        # course subprocess
-        hg = '/home/gracinet/buildbot/bin/hg'
+        """Update or create the bundle repository."""
         cwd = os.getcwd()
         if not os.path.isdir(self.bundle_dir):
-            os.system('%s clone %s %s' % (hg, self.bundle_url, self.clone_path))
+            os.system('hg clone %s %s' % (self.bundle_url, self.clone_path))
         else:
             os.chdir(self.bundle_dir)
-            os.system('%s pull %s' % (hg, self.bundle_url))
+            os.system('hg pull %s' % self.bundle_url)
 
         os.chdir(self.bundle_dir)
-        os.system('%s up %s' % (hg, self.bundle_branch))
+        os.system('hg up %s' % self.bundle_branch)
         os.chdir(cwd)
 
     def filter_change(self, change):
