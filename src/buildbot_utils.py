@@ -54,7 +54,7 @@ class BundleChangeFilter(ChangeFilter):
 
     def extract_descriptors(self):
         bundle = Bundle(self.bundle_dir)
-        descriptors = bundle.getRepoDescriptors()
+        descriptors = list(bundle.getRepoDescriptors())
         for b in bundle.getSubBundles():
             descriptors.extend(b['descriptors'])
         self.descriptors = [d for d in descriptors if not isinstance(d, Tag)]
