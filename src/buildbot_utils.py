@@ -4,6 +4,7 @@ import urlparse
 
 from buildbot.changes.filter import ChangeFilter
 from bundle import Bundle
+from server import read_servers
 from repodescriptor import Tag
 
 class BundleChangeFilter(ChangeFilter):
@@ -53,6 +54,7 @@ class BundleChangeFilter(ChangeFilter):
         self.latest_update = now
 
     def extract_descriptors(self):
+        read_servers(self.bundle_dir)
         bundle = Bundle(self.bundle_dir)
         descriptors = list(bundle.getRepoDescriptors())
         for b in bundle.getSubBundles():
