@@ -23,6 +23,7 @@ import tests
 from tests import TEST_DATA_PATH
 from tests import rmr, hg_init, un_hg
 
+from subprocess import call
 from StringIO import StringIO
 from mercurial import hg
 from mercurial import commands as hg_commands
@@ -118,6 +119,26 @@ class BundleTestCase(unittest.TestCase):
         hg_commands.tag(already.ui, already, '1.0.0', message='Previous tag')
 
         bundle.release('TEST', options=tests.Options())
+
+    def test_release_branch_at_tag(self):
+        bundle = self.prepareBundle('bundle', 'bundle3.xml')
+        hg_init(bundle.bundle_dir)
+
+        bundle.make_clones()
+        repo_path = os.path.join(bundle.bundle_dir, 'ToRelease')
+        call(['hg', '--cwd', repo_path, 'up', '0.0.1'])
+        call(['hg', '--cwd', repo_path, 'branch', 'new-branch'])
+        f = open(os.path.join(repo_path, 'file_in_branch'), 'w')
+        f.write("A file in new branch" + os.linesep)
+        f.close()
+        call(['hg', '--cwd', repo_path, 'add', 'file_in_branch'])
+        call(['hg', '--cwd', repo_path, 'commit', '-m', 'branch start'])
+        call(['hg', '--cwd', repo_path, 'up', '-C', 'default'])
+        bundle.release('TEST', options=tests.Options())
+        vf = open(os.path.join(repo_path, 'VERSION'))
+        lines = vf.readlines()
+        self.assertEquals(lines[3].split('=')[1].strip(), '0.0.2')
+
 
     def test_repo_release_very_first(self):
         bundle = self.prepareBundle('bundle', 'bundle1.xml')

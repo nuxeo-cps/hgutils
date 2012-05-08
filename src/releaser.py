@@ -181,7 +181,10 @@ First release built by: %s at: %s
 
     def changedSinceTag(self, node, tag_name=None):
         tag_ctx = self.repo.changectx(node)
-        children = tag_ctx.children()
+        def branch_children(ctx):
+            return [c for c in ctx.children() if c.branch() == self.branch]
+
+        children = branch_children(tag_ctx)
         base_error_msg = ("Previous tag %s (from VERSION) " +
                          "not done by hgbundler. ")
         if len(children) != 1:
@@ -190,7 +193,8 @@ First release built by: %s at: %s
                          "one child (commit of tag).", tag_name)
             self.dumpLogSince(tag_ctx.node())
             raise RepoReleaseError
-        children = children[0].children()
+
+        children = branch_children(children[0])
         if len(children) != 1:
             logger.error(base_error_msg + "The tag commit "
                          "would otherwise have exactly one child (reinit of "
