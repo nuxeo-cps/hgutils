@@ -64,11 +64,11 @@ class Server(object):
             try:
                 new_attrib = dict(known_servers[ref].attrib)
             except KeyError:
-                logger.fatal("Unknown predefined server %r", ref)
-                sys.exit(1)
+                logger.info("No externally defined server %r. Using "
+                            "attributes from manifest file", ref)
+            else:
+                attrib.update(new_attrib)
 
-            new_attrib.update(attrib)
-            attrib = new_attrib
 
         self.name = attrib.get('name')
         self.from_include = attrib.get('from-include',
