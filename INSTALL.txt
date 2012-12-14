@@ -74,15 +74,18 @@ GNU/Linux 6.0 (squeeze)::
 
 The workaround is to instal hgutils in a virtualenv_ ::
 
-  ~/hg.cps-cms.org/hgutils$ virtualenv ~/hg.cps-cms.org/hgutils/virtualenv
+  ~/hg.cps-cms.org/hgutils$ virtualenv ~/hg.cps-cms.org/hgutils/virtualenv --system-site-packages
   ~/hg.cps-cms.org/hgutils$ source virtualenv/bin/activate
 
   (virtualenv):~/hg.cps-cms.org/hgutils$ python bootstrap.py
   (virtualenv):~/hg.cps-cms.org/hgutils$ bin/buildout
 
+Depending on your case you may use the `--system-site-packages` option or the
+`--no-site-packages` option.
+
 When the build is done, it's not needed to bother of the virtualenv anymore when
-running the executables in hgutils. The virtualenv is only useful for the build
-time.
+running the executables in hgutils. But note that the virtualenv must not be
+deleted it is used bu the executables.
 
 You'll find the produced relocatable scripts in the `bin` subdirectory.
 They usually work on the current directory, so you'll have to
