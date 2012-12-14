@@ -19,25 +19,25 @@ Dependencies
     need setuptools/distribute
 
 
+============
 Installation
 ============
 
 Buildout sandbox
-----------------
+================
 
 Run::
+ python bootstrap.py
+ bin/buildout
 
-  python bootstrap.py
-  bin/buildout
-
-You'll find the produced relocatable scripts in the bin/ subdirectory,
-notably hgbundler, strip_reorg.sh
-
+You'll find the produced relocatable scripts in the `bin` subdirectory.
 They usually work on the current directory, so you'll have to
-put them on your PATH somehow.
+put them on your PATH somehow, for example::
+ export PATH=~/hg.cps-cms.org/hgutils/bin:$PATH
+and you are ready to use the hgutils executables: `hgbundler`, `hgmap`, etc.
 
 Buildout sandbox in a virtualenv
---------------------------------
+================================
 
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 
@@ -84,9 +84,18 @@ When the build is done, it's not needed to bother of the virtualenv anymore when
 running the executables in hgutils. The virtualenv is only useful for the build
 time.
 
+You'll find the produced relocatable scripts in the `bin` subdirectory.
+They usually work on the current directory, so you'll have to
+put them on your PATH somehow, for example::
+ export PATH=~/hg.cps-cms.org/hgutils/bin:$PATH
+and you are ready to use the hgutils executables: `hgbundler`, `hgmap`, etc.
+
+
 System-wide
------------
+===========
+
 TODO
+
 
 .. Local Variables:
 .. mode: rst
