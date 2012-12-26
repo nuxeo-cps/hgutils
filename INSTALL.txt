@@ -19,12 +19,11 @@ Dependencies
     need setuptools/distribute
 
 
-============
-Installation
-============
+The different possible types of installation
+============================================
 
 Buildout sandbox
-================
+----------------
 
 Run::
  python bootstrap.py
@@ -37,7 +36,7 @@ put them on your PATH somehow, for example::
 and you are ready to use the hgutils executables: `hgbundler`, `hgmap`, etc.
 
 Buildout sandbox in a virtualenv
-================================
+--------------------------------
 
 .. _virtualenv: http://www.virtualenv.org/en/latest/index.html
 
@@ -95,7 +94,7 @@ and you are ready to use the hgutils executables: `hgbundler`, `hgmap`, etc.
 
 
 System-wide
-===========
+-----------
 
 TODO
 
